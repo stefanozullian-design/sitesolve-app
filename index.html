@@ -13,7 +13,6 @@
         body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
         .step-btn.active { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
         
-        /* Smooth transition for the instant submit feedback */
         .submit-overlay {
             display: none;
             position: fixed;
@@ -23,6 +22,12 @@
             align-items: center;
             justify-content: center;
         }
+
+        .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; }
+        .delete-btn { position: absolute; top: 8px; right: 12px; color: #ef4444; font-weight: 900; font-size: 14px; cursor: pointer; }
+        
+        /* Category pill in the card */
+        .cat-pill { font-size: 8px; font-weight: 900; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; cursor: pointer; display: inline-block; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
@@ -42,27 +47,34 @@
         <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
     </header>
 
-    <div class="space-y-6 max-w-md mx-auto w-full pb-10">
-        
+    <div class="space-y-6 max-w-md mx-auto w-full pb-6">
         <section>
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
-            <div id="steps-container" class="grid grid-cols-2 gap-2">
-                </div>
+            <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
         </section>
 
         <section>
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
             <textarea id="note-input" 
-                class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-40 transition-all text-sm"
+                class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-32 transition-all text-sm"
                 placeholder="Type your observation here..."></textarea>
         </section>
 
         <section>
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
-            <div id="cats-container" class="grid grid-cols-1 gap-3">
-                </div>
+            <div id="cats-container" class="grid grid-cols-1 gap-3"></div>
         </section>
 
+        <hr class="border-gray-800 my-8">
+
+        <section>
+            <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block flex items-center gap-2">
+                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> My Sent Observations (Tap text to edit)
+            </label>
+            <div id="my-contributions-list">
+                <p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>
+            </div>
+        </section>
     </div>
 
     <script>
@@ -79,15 +91,17 @@
         const db = firebase.database();
 
         let selectedStep = "";
+        let participantId = localStorage.getItem('participantId') || 'p_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('participantId', participantId);
+        let globalCats = [];
 
         // SYNC CONFIG
         db.ref('config').on('value', snap => {
             const config = snap.val();
             if (!config) return;
-
+            globalCats = config.cats || [];
             document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
 
-            // Render Steps
             document.getElementById('steps-container').innerHTML = config.steps.map(step => `
                 <button onclick="selectStep(this, '${step}')" 
                     class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">
@@ -95,7 +109,6 @@
                 </button>
             `).join('');
 
-            // Render Categories (Submit Action)
             document.getElementById('cats-container').innerHTML = config.cats.map(cat => `
                 <button onclick="submitInstant('${cat.name}', '${cat.color}')" 
                     class="p-4 rounded-xl text-xs font-black uppercase border-b-4 active:translate-y-1 transition-all text-left flex justify-between items-center"
@@ -106,26 +119,66 @@
             `).join('');
         });
 
+        // SYNC PERSONAL CONTRIBUTIONS
+        db.ref('notes').on('value', snap => {
+            const list = document.getElementById('my-contributions-list');
+            const data = snap.val() || {};
+            const myNotes = Object.entries(data)
+                .filter(([id, n]) => n.sender === participantId)
+                .reverse();
+
+            if (myNotes.length === 0) {
+                list.innerHTML = '<p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>';
+                return;
+            }
+
+            list.innerHTML = myNotes.map(([id, n]) => `
+                <div class="my-issue-card" style="border-left-color: ${n.color}">
+                    <div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span>
+                        <span class="cat-pill" 
+                              style="background: ${n.color}; color: white;" 
+                              onclick="cycleCategory('${id}', '${n.category}')">
+                            ${n.category} ⚡
+                        </span>
+                    </div>
+                    <div contenteditable="true" 
+                         class="text-xs font-bold leading-tight outline-none focus:text-blue-600"
+                         onblur="updateMyNote('${id}', this.innerText)">${n.text}</div>
+                </div>
+            `).join('');
+        });
+
         function selectStep(btn, step) {
             document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             selectedStep = step;
         }
 
-        // INSTANT SUBMIT
+        function updateMyNote(id, newText) {
+            db.ref(`notes/${id}`).update({ text: newText.trim() });
+        }
+
+        function cycleCategory(id, currentCatName) {
+            const index = globalCats.findIndex(c => c.name === currentCatName);
+            const nextIndex = (index + 1) % globalCats.length;
+            const nextCat = globalCats[nextIndex];
+            db.ref(`notes/${id}`).update({ 
+                category: nextCat.name, 
+                color: nextCat.color 
+            });
+        }
+
+        function deleteMyNote(id) {
+            if(confirm("Delete this observation?")) db.ref(`notes/${id}`).remove();
+        }
+
         function submitInstant(catName, catColor) {
             const text = document.getElementById('note-input').value.trim();
-            
-            if (!selectedStep) {
-                alert("Please select a Location/Step first.");
-                return;
-            }
-            if (!text) {
-                alert("Please describe the observation.");
-                return;
-            }
+            if (!selectedStep) { alert("Please select a Location/Step first."); return; }
+            if (!text) { alert("Please describe the observation."); return; }
 
-            // Show Success Overlay
             const overlay = document.getElementById('successOverlay');
             overlay.style.display = 'flex';
 
@@ -135,18 +188,14 @@
                 color: catColor,
                 text: text,
                 timestamp: Date.now(),
-                wall_x: Math.random() * 50, // Slight random offset for free-form wall
+                sender: participantId,
+                wall_x: Math.random() * 50,
                 wall_y: Math.random() * 50
             };
 
             db.ref('notes').push(newNote).then(() => {
-                // Clear input
                 document.getElementById('note-input').value = "";
-                
-                // Hide overlay after a second
-                setTimeout(() => {
-                    overlay.style.display = 'none';
-                }, 1000);
+                setTimeout(() => { overlay.style.display = 'none'; }, 800);
             });
         }
     </script>
