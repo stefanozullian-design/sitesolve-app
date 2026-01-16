@@ -3,49 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SiteSolve - Participant</title>
+    <title>SiteSolve Pro - Participant</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        .step-btn.active { background-color: #3b82f6; border-color: #60a5fa; color: white; }
-        .cat-btn:active { transform: scale(0.92); }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .history-card { animation: slideIn 0.3s ease-out; }
-        @keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
+        .step-btn.active { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
+        
+        /* Smooth transition for the instant submit feedback */
+        .submit-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.9);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
-<body class="bg-gray-950 text-white h-screen flex flex-col p-3 font-sans overflow-hidden">
+<body class="min-h-screen flex flex-col p-4">
 
-    <header class="flex justify-between items-center mb-2 shrink-0">
-        <h1 class="text-lg font-black italic text-blue-500 tracking-tighter uppercase">SiteSolve</h1>
-        <div id="connectionStatus" class="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
+    <div id="successOverlay" class="submit-overlay flex-col">
+        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <p class="font-black uppercase tracking-tighter text-xl text-green-500">Observation Sent</p>
+    </div>
+
+    <header class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-xl font-black text-blue-500 italic uppercase leading-none">SiteSolve Pro</h1>
+            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Live Participant Feed</p>
+        </div>
+        <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
     </header>
 
-    <section class="mb-3 shrink-0">
-        <h3 class="text-[9px] font-black text-gray-500 uppercase mb-1.5 tracking-widest">1. Location</h3>
-        <div id="stepGrid" class="grid grid-cols-4 gap-1.5"></div>
-    </section>
+    <div class="space-y-6 max-w-md mx-auto w-full pb-10">
+        
+        <section>
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
+            <div id="steps-container" class="grid grid-cols-2 gap-2">
+                </div>
+        </section>
 
-    <section class="mb-3 shrink-0">
-        <h3 class="text-[9px] font-black text-gray-500 uppercase mb-1.5 tracking-widest">2. Observation</h3>
-        <textarea id="obsInput" placeholder="Brief description..." 
-            class="w-full h-20 bg-gray-900 border border-gray-800 rounded-lg p-3 text-sm outline-none focus:border-blue-500 transition-colors resize-none font-medium"></textarea>
-    </section>
+        <section>
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
+            <textarea id="note-input" 
+                class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-40 transition-all text-sm"
+                placeholder="Type your observation here..."></textarea>
+        </section>
 
-    <section class="mb-4 shrink-0">
-        <h3 class="text-[9px] font-black text-gray-500 uppercase mb-1.5 tracking-widest text-center">3. Tap Category to Sync</h3>
-        <div id="catGrid" class="grid grid-cols-4 gap-1.5"></div>
-    </section>
+        <section>
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
+            <div id="cats-container" class="grid grid-cols-1 gap-3">
+                </div>
+        </section>
 
-    <section class="flex-1 min-h-0 flex flex-col border-t border-gray-900 pt-3">
-        <h3 class="text-[9px] font-black text-blue-500 uppercase mb-2 tracking-widest">Your Sent Issues (Tap to edit)</h3>
-        <div id="personalHistory" class="flex-1 overflow-y-auto space-y-2 no-scrollbar pb-10">
-            </div>
-    </section>
-
-    <div id="successOverlay" class="hidden fixed inset-0 bg-blue-600/90 z-50 flex flex-col items-center justify-center text-center">
-        <h2 class="text-2xl font-black italic uppercase">Synced!</h2>
     </div>
 
     <script>
@@ -60,92 +77,77 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        
-        let selectedStep = "";
-        let mySubmissionKeys = []; // Track only what this phone sent
 
-        // LOAD CONFIG
+        let selectedStep = "";
+
+        // SYNC CONFIG
         db.ref('config').on('value', snap => {
             const config = snap.val();
             if (!config) return;
-            document.getElementById('stepGrid').innerHTML = config.steps.map(s => `
-                <button onclick="selectStep(this, '${s}')" class="step-btn bg-gray-900 border border-gray-800 py-2 rounded text-[9px] font-bold uppercase truncate px-1">${s}</button>
+
+            document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
+
+            // Render Steps
+            document.getElementById('steps-container').innerHTML = config.steps.map(step => `
+                <button onclick="selectStep(this, '${step}')" 
+                    class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">
+                    ${step}
+                </button>
             `).join('');
-            document.getElementById('catGrid').innerHTML = config.cats.map(c => `
-                <button onclick="submitViaCategory('${c.name}', '${c.color}')" class="cat-btn py-3 rounded font-black text-[9px] uppercase shadow-md truncate px-1" style="background-color:${c.color}; color:${getContrastYIQ(c.color)}">${c.name}</button>
+
+            // Render Categories (Submit Action)
+            document.getElementById('cats-container').innerHTML = config.cats.map(cat => `
+                <button onclick="submitInstant('${cat.name}', '${cat.color}')" 
+                    class="p-4 rounded-xl text-xs font-black uppercase border-b-4 active:translate-y-1 transition-all text-left flex justify-between items-center"
+                    style="background-color: ${cat.color}20; color: ${cat.color}; border-color: ${cat.color};">
+                    ${cat.name}
+                    <span class="opacity-50 text-[18px]">→</span>
+                </button>
             `).join('');
         });
 
-        function selectStep(btn, val) {
+        function selectStep(btn, step) {
             document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            selectedStep = val;
+            selectedStep = step;
         }
 
-        function submitViaCategory(catName, catColor) {
-            const text = document.getElementById('obsInput').value.trim();
-            if (!selectedStep || !text) return alert("Fill in Location and Description!");
-
-            const newPostRef = db.ref('notes').push();
-            const key = newPostRef.key;
+        // INSTANT SUBMIT
+        function submitInstant(catName, catColor) {
+            const text = document.getElementById('note-input').value.trim();
             
-            newPostRef.set({
-                step: selectedStep, category: catName, color: catColor, text: text, timestamp: Date.now()
-            }).then(() => {
-                mySubmissionKeys.unshift(key); // Add to local history list
-                updateHistoryUI();
-                showSuccess();
-            });
-        }
-
-        function updateHistoryUI() {
-            const historyContainer = document.getElementById('personalHistory');
-            historyContainer.innerHTML = '';
-            
-            mySubmissionKeys.forEach(key => {
-                db.ref(`notes/${key}`).once('value', snap => {
-                    const data = snap.val();
-                    if (!data) return;
-                    
-                    const card = document.createElement('div');
-                    card.className = "history-card bg-gray-900 border-l-4 p-3 rounded flex justify-between items-center";
-                    card.style.borderColor = data.color;
-                    card.innerHTML = `
-                        <div class="flex-1 pr-4">
-                            <div class="text-[8px] text-gray-500 uppercase font-black">${data.step} • ${data.category}</div>
-                            <input type="text" value="${data.text}" onchange="editNote('${key}', this.value)" 
-                                class="bg-transparent w-full text-xs font-bold text-white outline-none focus:text-blue-400 border-b border-transparent focus:border-blue-500">
-                        </div>
-                        <button onclick="deleteNote('${key}')" class="text-red-900 text-xs">✕</button>
-                    `;
-                    historyContainer.appendChild(card);
-                });
-            });
-        }
-
-        function editNote(key, newText) {
-            db.ref(`notes/${key}`).update({ text: newText });
-        }
-
-        function deleteNote(key) {
-            if (confirm("Delete this observation?")) {
-                db.ref(`notes/${key}`).remove();
-                mySubmissionKeys = mySubmissionKeys.filter(k => k !== key);
-                updateHistoryUI();
+            if (!selectedStep) {
+                alert("Please select a Location/Step first.");
+                return;
             }
-        }
+            if (!text) {
+                alert("Please describe the observation.");
+                return;
+            }
 
-        function showSuccess() {
+            // Show Success Overlay
             const overlay = document.getElementById('successOverlay');
-            overlay.classList.remove('hidden');
-            document.getElementById('obsInput').value = "";
-            setTimeout(() => { overlay.classList.add('hidden'); }, 700);
-        }
+            overlay.style.display = 'flex';
 
-        function getContrastYIQ(hexcolor){
-            hexcolor = hexcolor.replace("#", "");
-            var r = parseInt(hexcolor.substr(0,2),16), g = parseInt(hexcolor.substr(2,2),16), b = parseInt(hexcolor.substr(4,2),16);
-            return (((r*299)+(g*587)+(b*114))/1000 >= 128) ? 'black' : 'white';
+            const newNote = {
+                step: selectedStep,
+                category: catName,
+                color: catColor,
+                text: text,
+                timestamp: Date.now(),
+                wall_x: Math.random() * 50, // Slight random offset for free-form wall
+                wall_y: Math.random() * 50
+            };
+
+            db.ref('notes').push(newNote).then(() => {
+                // Clear input
+                document.getElementById('note-input').value = "";
+                
+                // Hide overlay after a second
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                }, 1000);
+            });
         }
     </script>
 </body>
