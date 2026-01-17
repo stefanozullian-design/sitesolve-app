@@ -10,34 +10,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         body { background-color: #030712; color: white; overflow: hidden; font-family: ui-sans-serif, system-ui; }
         .tab-content { display: none !important; height: calc(100vh - 60px); width: 100%; }
         .tab-content.active { display: flex !important; flex-direction: column; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-
-        /* NAV */
         nav button.active-tab { background-color: #1e3a8a !important; color: white !important; border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
-
-        /* TAB 2 WALL ITEMS */
         .wall-item { background: white; color: black; padding: 12px; border-radius: 6px; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-left-width: 8px; margin-bottom: 12px; touch-action: none; cursor: grab; z-index: 10; position: relative; }
         .step-badge { position: absolute; top: 8px; right: 8px; font-size: 7px; font-weight: 900; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; border: 1px solid #e2e8f0; pointer-events: none; z-index: 20; }
-
-        /* TAB 3 RANKING */
         .rank-column { min-width: 300px; background: rgba(15, 23, 42, 0.6); border-radius: 12px; height: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
         .rank-item { background: white; color: black; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 11px; text-transform: uppercase; cursor: grab; position: absolute; width: calc(100% - 24px); border-left-width: 8px; touch-action: none; z-index: 10; }
-
-        /* TAB 4 EFFORT MINI CARDS */
         .effort-node { position: absolute; width: 160px; background: white; color: black; padding: 8px; border-radius: 4px; font-size: 9px; font-weight: 800; border-left: 4px solid; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none; z-index: 10; }
-
-        /* TAB 5 MATRIX */
         .matrix-container { width: 100%; aspect-ratio: 1/1; position: relative; background: #0f172a; border: 2px solid #334155; }
         .matrix-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
         .matrix-cell { border: 1px solid rgba(255,255,255,0.1); position: relative; }
         .matrix-cell::after { content: attr(data-label); position: absolute; top: 4px; left: 4px; font-size: 7px; font-weight: 900; color: #475569; text-transform: uppercase; opacity: 0.6; }
         .matrix-postit { position: absolute; width: 60px; height: 60px; background: white; color: black; font-size: 7px; font-weight: 800; padding: 6px; border-radius: 2px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); transform: translate(-50%, -50%); overflow: hidden; line-height: 1.1; border-left: 4px solid; z-index: 30; }
-        
         .roadmap-column { min-width: 260px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); }
         .final-card { background: white; color: black; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border-left: 6px solid; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
         .roi-tag { font-family: monospace; font-size: 9px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; color: #1e40af; font-weight: 900; }
@@ -55,13 +45,24 @@
 
     <div id="setup-tab" class="tab-content active p-6 overflow-y-auto">
         <div class="max-w-5xl mx-auto space-y-6">
-            <div class="bg-blue-600/10 border border-blue-500/30 p-6 rounded-2xl flex flex-col gap-2">
-                <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Workshop Identity</label>
-                <input type="text" id="workshopTitle" placeholder="NAME YOUR EXERCISE..." class="bg-transparent text-3xl font-black text-white outline-none uppercase italic">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2 bg-blue-600/10 border border-blue-500/30 p-6 rounded-2xl flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Workshop Identity</label>
+                    <input type="text" id="workshopTitle" placeholder="NAME YOUR EXERCISE..." class="bg-transparent text-3xl font-black text-white outline-none uppercase italic">
+                </div>
+                <div class="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center gap-3">
+                    <div id="qrcode" class="p-2 bg-white rounded-lg"></div>
+                    <div class="text-center">
+                        <p class="text-[9px] font-bold text-gray-400 uppercase">Room Code</p>
+                        <p id="roomDisplay" class="text-2xl font-black tracking-widest text-blue-400">------</p>
+                    </div>
+                </div>
             </div>
+
             <div class="flex justify-between items-center pt-4">
                 <h2 class="text-xl font-black text-gray-500 italic uppercase">Configuration</h2>
                 <div class="flex gap-4">
+                    <button onclick="generateNewRoom()" class="text-blue-400 text-[10px] font-black uppercase px-4 border border-blue-900/30 rounded-lg">New Room Code</button>
                     <button onclick="resetAllData()" class="text-red-500 text-[10px] font-black uppercase px-4 border border-red-900/30 rounded-lg">Clear Session</button>
                     <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest">Sync All Devices</button>
                 </div>
@@ -88,10 +89,7 @@
     </div>
 
     <div id="board-tab" class="tab-content bg-[#020617]">
-        <div class="px-6 pt-4 flex justify-between text-[10px] font-black text-gray-600 uppercase">
-            <span>Critical (100%)</span>
-            <span>Minor (0%)</span>
-        </div>
+        <div class="px-6 pt-4 flex justify-between text-[10px] font-black text-gray-600 uppercase"><span>Critical (100%)</span><span>Minor (0%)</span></div>
         <div id="rankingContainer" class="flex-1 flex overflow-x-auto p-6 gap-6 scrollbar-hide"></div>
     </div>
 
@@ -120,7 +118,7 @@
             </div>
             <div class="w-96 flex flex-col gap-4 shrink-0">
                 <div class="matrix-container" id="matrixContainer">
-                    <div class="matrix-grid" id="matrixDots">
+                    <div class="matrix-grid">
                         <div class="matrix-cell" data-label="Golden Ticket"></div><div class="matrix-cell" data-label="Strategic Win"></div><div class="matrix-cell" data-label="Major Project"></div>
                         <div class="matrix-cell" data-label="Quick Win"></div><div class="matrix-cell" data-label="Tactical"></div><div class="matrix-cell" data-label="Hard Slog"></div>
                         <div class="matrix-cell" data-label="Why Not?"></div><div class="matrix-cell" data-label="Filler"></div><div class="matrix-cell" data-label="Money Pit"></div>
@@ -150,7 +148,23 @@
             { id: "pit", name: "Money Pit", minImp: 0, maxImp: 33, minEase: 0, maxEase: 33 }
         ];
 
-        // --- CORE FUNCTIONS ---
+        // --- NEW: ROOM & QR LOGIC ---
+        function generateNewRoom() {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let result = "";
+            for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+            document.getElementById('roomDisplay').innerText = result;
+            
+            // UPDATE THIS TO YOUR GITHUB URL
+            const participantUrl = window.location.href.replace('index.html', 'participant.html') + `?room=${result}`;
+            
+            const qrcodeContainer = document.getElementById("qrcode");
+            qrcodeContainer.innerHTML = "";
+            new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
+            db.ref('config/roomCode').set(result);
+        }
+
+        // --- PRESERVED CORE FUNCTIONS ---
         function addRow(containerId, name = "", color = null) {
             const container = document.getElementById(containerId);
             const row = document.createElement('div'); row.className = "row-item flex gap-2 p-2 bg-gray-800 rounded mb-2";
@@ -161,7 +175,7 @@
             const title = document.getElementById('workshopTitle').value;
             const steps = Array.from(document.querySelectorAll('#stepList input[type="text"]')).map(i => i.value);
             const cats = Array.from(document.querySelectorAll('#categoryList .row-item')).map(r => ({ name: r.querySelector('input[type="text"]').value, color: r.querySelector('input[type="color"]').value }));
-            db.ref('config').set({ title, steps, cats }).then(() => alert("Synced!"));
+            db.ref('config').update({ title, steps, cats }).then(() => alert("Synced!"));
         }
         function renderWall() {
             const container = document.getElementById('columnContainer');
@@ -179,24 +193,17 @@
         function approveSynthesis() {
             db.ref('notes').once('value', snap => {
                 const nodes = {}; const notes = snap.val() || {};
-                Object.entries(notes).forEach(([id, n], i) => {
-                    nodes['node_'+id] = { text: n.text, color: n.color, category: n.category, step: n.step, rank_y: 100, impact: 80, effort: 50, effort_x: 150 };
-                });
+                Object.entries(notes).forEach(([id, n], i) => { nodes['node_'+id] = { text: n.text, color: n.color, category: n.category, step: n.step, rank_y: 100, impact: 80, effort: 50, effort_x: 150 }; });
                 db.ref('matrix_nodes').set(nodes).then(() => showTab('board'));
             });
         }
-
         function renderRankingBoard() {
             const container = document.getElementById('rankingContainer');
             db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
                 db.ref('matrix_nodes').on('value', nSnap => {
                     const nodes = nSnap.val() || {};
-                    container.innerHTML = (c.cats || []).map(cat => `
-                        <div class="rank-column">
-                            <div class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</div>
-                            <div class="rank-slot h-full relative" data-cat="${cat.name}"></div>
-                        </div>`).join('');
+                    container.innerHTML = (c.cats || []).map(cat => `<div class="rank-column"><div class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</div><div class="rank-slot h-full relative" data-cat="${cat.name}"></div></div>`).join('');
                     Object.entries(nodes).forEach(([id, d]) => {
                         const slot = container.querySelector(`[data-cat="${d.category}"]`);
                         if(!slot) return;
@@ -204,36 +211,27 @@
                         el.style.borderLeftColor = d.color; el.style.top = (d.rank_y || 0) + 'px'; el.setAttribute('data-y', d.rank_y || 0);
                         el.innerHTML = `<div class="step-badge">${d.step}</div>${d.text} <span class="roi-tag ml-auto">${d.impact}%</span>`;
                         slot.appendChild(el);
-                        interact(el).draggable({ 
-                            listeners: { 
-                                move(e) {
-                                    let t = e.target; let parentH = t.parentElement.offsetHeight;
-                                    let y = (parseFloat(t.getAttribute('data-y'))||0) + e.dy;
-                                    y = Math.max(0, Math.min(y, parentH - 50)); 
-                                    t.style.top = y+'px'; t.setAttribute('data-y', y);
-                                }, 
-                                end(e) {
-                                    const y = parseFloat(e.target.getAttribute('data-y'));
-                                    const parentH = e.target.parentElement.offsetHeight;
-                                    const impactVal = Math.round(100 - (y / (parentH - 50)) * 100);
-                                    db.ref(`matrix_nodes/${id}`).update({ rank_y: y, impact: Math.max(0, Math.min(100, impactVal)) });
-                                }
-                            }
-                        });
+                        interact(el).draggable({ listeners: { move(e) {
+                            let t = e.target; let parentH = t.parentElement.offsetHeight;
+                            let y = (parseFloat(t.getAttribute('data-y'))||0) + e.dy;
+                            y = Math.max(0, Math.min(y, parentH - 50)); 
+                            t.style.top = y+'px'; t.setAttribute('data-y', y);
+                        }, end(e) {
+                            const y = parseFloat(e.target.getAttribute('data-y')); const parentH = e.target.parentElement.offsetHeight;
+                            const impactVal = Math.round(100 - (y / (parentH - 50)) * 100);
+                            db.ref(`matrix_nodes/${id}`).update({ rank_y: y, impact: Math.max(0, Math.min(100, impactVal)) });
+                        }}});
                     });
                 });
             });
         }
-
         function renderEffort() {
-            const nav = document.getElementById('effortCatNav');
-            const area = document.getElementById('effortWorkingArea');
+            const nav = document.getElementById('effortCatNav'); const area = document.getElementById('effortWorkingArea');
             db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
                 nav.innerHTML = (c.cats || []).map(cat => `<button onclick="filterEffortCat('${cat.name}')" class="px-3 py-1 rounded text-[9px] font-black uppercase border transition-all" style="border-color:${cat.color}; color:${currentEffortCat===cat.name?'black':cat.color}; background:${currentEffortCat===cat.name?cat.color:'transparent'}">${cat.name}</button>`).join('');
                 db.ref('matrix_nodes').on('value', nSnap => {
-                    area.innerHTML = '';
-                    const nodes = nSnap.val() || {};
+                    area.innerHTML = ''; const nodes = nSnap.val() || {};
                     Object.entries(nodes).filter(([id, d]) => !currentEffortCat || d.category === currentEffortCat).forEach(([id, d], i) => {
                         const el = document.createElement('div'); el.className = "effort-node"; el.style.borderLeftColor = d.color;
                         el.style.left = (d.effort_x || 10) + 'px'; el.style.top = (20 + (i * 45)) + 'px'; el.setAttribute('data-x', d.effort_x || 10);
@@ -241,11 +239,9 @@
                         area.appendChild(el);
                         interact(el).draggable({ listeners: { move(e) {
                             let t = e.target, x = (parseFloat(t.getAttribute('data-x')) || 0) + e.dx;
-                            x = Math.max(10, Math.min(x, area.offsetWidth - 170));
-                            t.style.left = x + 'px'; t.setAttribute('data-x', x);
+                            x = Math.max(10, Math.min(x, area.offsetWidth - 170)); t.style.left = x + 'px'; t.setAttribute('data-x', x);
                         }, end(e) {
-                            const x = parseFloat(e.target.getAttribute('data-x'));
-                            const percent = Math.round((x / (area.offsetWidth - 170)) * 100);
+                            const x = parseFloat(e.target.getAttribute('data-x')); const percent = Math.round((x / (area.offsetWidth - 170)) * 100);
                             db.ref(`matrix_nodes/${id}`).update({ effort_x: x, effort: percent });
                         }}});
                     });
@@ -253,46 +249,22 @@
             });
         }
         function filterEffortCat(name) { currentEffortCat = (currentEffortCat === name) ? null : name; renderEffort(); }
-
-        // --- TAB 5: ROADMAP (REPAIRED MATRIX) ---
         function renderRoadmap() {
-            const container = document.getElementById('roadmapContainer'); 
-            const masterList = document.getElementById('masterRankList');
-            const matrixPoints = document.getElementById('matrixPoints');
+            const container = document.getElementById('roadmapContainer'); const masterList = document.getElementById('masterRankList'); const matrixPoints = document.getElementById('matrixPoints');
             container.innerHTML = ''; masterList.innerHTML = ''; matrixPoints.innerHTML = '';
-            
             db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
                 db.ref('matrix_nodes').once('value', nSnap => {
                     const nodes = Object.entries(nSnap.val() || {}).map(([id, n]) => ({ ...n, id, roi: Math.round((n.impact * n.effort) / 100) }));
-                    
-                    // Render Matrix Points (Post-its)
-                    const matrixBox = document.getElementById('matrixContainer');
-                    const w = matrixBox.offsetWidth;
-                    const h = matrixBox.offsetHeight;
-
+                    const matrixBox = document.getElementById('matrixContainer'); const w = matrixBox.offsetWidth; const h = matrixBox.offsetHeight;
                     nodes.forEach(n => {
-                        const dot = document.createElement('div');
-                        dot.className = "matrix-postit";
-                        dot.style.borderLeftColor = n.color;
-                        
-                        // Map 0-100 values to pixel coordinates
-                        // Ease (Effort) is X axis, Impact is Y axis (inverted)
-                        const x = (n.effort / 100) * w;
-                        const y = h - ((n.impact / 100) * h);
-                        
-                        // Prevent dots from being exactly on edge
-                        dot.style.left = Math.max(35, Math.min(x, w - 35)) + 'px';
-                        dot.style.top = Math.max(35, Math.min(y, h - 35)) + 'px';
-                        
-                        dot.innerHTML = n.text;
-                        matrixPoints.appendChild(dot);
+                        const dot = document.createElement('div'); dot.className = "matrix-postit"; dot.style.borderLeftColor = n.color;
+                        const x = (n.effort / 100) * w; const y = h - ((n.impact / 100) * h);
+                        dot.style.left = Math.max(35, Math.min(x, w - 35)) + 'px'; dot.style.top = Math.max(35, Math.min(y, h - 35)) + 'px';
+                        dot.innerHTML = n.text; matrixPoints.appendChild(dot);
                     });
-
-                    // Render Roadmap Columns
                     (c.cats || []).forEach(cat => {
-                        const col = document.createElement('div'); col.className = "roadmap-column";
-                        col.innerHTML = `<h3 class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</h3>`;
+                        const col = document.createElement('div'); col.className = "roadmap-column"; col.innerHTML = `<h3 class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</h3>`;
                         zones.forEach(z => {
                             const items = nodes.filter(n => n.category === cat.name && n.impact >= z.minImp && n.impact < z.maxImp && n.effort >= z.minEase && n.effort < z.maxEase);
                             if(items.length > 0) {
@@ -303,14 +275,10 @@
                         });
                         container.appendChild(col);
                     });
-
-                    nodes.sort((a,b) => b.roi - a.roi).forEach((n, i) => {
-                        masterList.innerHTML += `<div class="flex items-center gap-2 mb-2 p-2 bg-white/5 rounded text-[9px] uppercase font-bold" style="border-left: 3px solid ${n.color}">#${i+1} ${n.text} <span class="ml-auto roi-tag">${n.roi}</span></div>`;
-                    });
+                    nodes.sort((a,b) => b.roi - a.roi).forEach((n, i) => { masterList.innerHTML += `<div class="flex items-center gap-2 mb-2 p-2 bg-white/5 rounded text-[9px] uppercase font-bold" style="border-left: 3px solid ${n.color}">#${i+1} ${n.text} <span class="ml-auto roi-tag">${n.roi}</span></div>`; });
                 });
             });
         }
-
         function showTab(tId) {
             document.querySelectorAll('.tab-content, nav button').forEach(el => el.classList.remove('active', 'active-tab'));
             document.getElementById(tId + '-tab').classList.add('active');
@@ -321,6 +289,15 @@
             if(tId === 'final') renderRoadmap();
         }
         function resetAllData() { if(confirm("Clear All?")) db.ref('/').remove().then(()=>location.reload()); }
+        
+        // Init
+        db.ref('config/roomCode').once('value', snapshot => {
+            if (snapshot.exists()) {
+                document.getElementById('roomDisplay').innerText = snapshot.val();
+                const participantUrl = window.location.href.replace('index.html', 'participant.html') + `?room=${snapshot.val()}`;
+                new QRCode(document.getElementById("qrcode"), { text: participantUrl, width: 100, height: 100 });
+            } else { generateNewRoom(); }
+        });
         showTab('setup');
     </script>
 </body>
