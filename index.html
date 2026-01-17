@@ -25,56 +25,81 @@
 
         .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; }
         .delete-btn { position: absolute; top: 8px; right: 12px; color: #ef4444; font-weight: 900; font-size: 14px; cursor: pointer; }
-        
-        /* Category pill in the card */
         .cat-pill { font-size: 8px; font-weight: 900; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; cursor: pointer; display: inline-block; }
+        
+        /* Login UI Styling */
+        .login-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        #app-interface { display: none; }
+        .room-input { letter-spacing: 0.5em; text-transform: uppercase; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
 
-    <div id="successOverlay" class="submit-overlay flex-col">
-        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
-            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+    <div id="login-screen" class="fixed inset-0 flex items-center justify-center p-6 z-[200] bg-[#030712]">
+        <div class="w-full max-w-sm space-y-8 text-center">
+            <div>
+                <h1 class="text-4xl font-black italic text-blue-500 tracking-tighter uppercase">SiteSolve</h1>
+                <p class="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2">Participant Portal</p>
+            </div>
+            <div class="login-card p-8 rounded-3xl space-y-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Enter 6-Letter Room Code</label>
+                    <input type="text" id="roomInput" maxlength="6" class="room-input w-full bg-black/40 border-2 border-white/10 rounded-xl py-4 text-center text-2xl font-black text-white outline-none focus:border-blue-500 transition-all" placeholder="------">
+                </div>
+                <button onclick="validateRoom()" id="joinBtn" class="w-full bg-blue-600 py-4 rounded-xl font-black uppercase text-sm tracking-widest transition-all">Join Workshop</button>
+                <p id="errorMsg" class="text-red-500 text-[10px] font-bold uppercase hidden">Invalid Room Code</p>
+            </div>
         </div>
-        <p class="font-black uppercase tracking-tighter text-xl text-green-500">Observation Sent</p>
     </div>
 
-    <header class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-xl font-black text-blue-500 italic uppercase leading-none">SiteSolve Pro</h1>
-            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Live Participant Feed</p>
-        </div>
-        <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
-    </header>
-
-    <div class="space-y-6 max-w-md mx-auto w-full pb-6">
-        <section>
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
-            <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
-        </section>
-
-        <section>
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
-            <textarea id="note-input" 
-                class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-32 transition-all text-sm"
-                placeholder="Type your observation here..."></textarea>
-        </section>
-
-        <section>
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
-            <div id="cats-container" class="grid grid-cols-1 gap-3"></div>
-        </section>
-
-        <hr class="border-gray-800 my-8">
-
-        <section>
-            <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> My Sent Observations (Tap text to edit)
-            </label>
-            <div id="my-contributions-list">
-                <p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>
+    <div id="app-interface" class="w-full">
+        <div id="successOverlay" class="submit-overlay flex-col">
+            <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
+                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
             </div>
-        </section>
+            <p class="font-black uppercase tracking-tighter text-xl text-green-500">Observation Sent</p>
+        </div>
+
+        <header class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-xl font-black text-blue-500 italic uppercase leading-none">SiteSolve Pro</h1>
+                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Live Participant Feed</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="activeRoomCode" class="text-[9px] font-black bg-blue-500/20 px-2 py-1 rounded text-blue-400 uppercase">ROOM: ---</span>
+                <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
+            </div>
+        </header>
+
+        <div class="space-y-6 max-w-md mx-auto w-full pb-6">
+            <section>
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
+                <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
+            </section>
+
+            <section>
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
+                <textarea id="note-input" 
+                    class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-32 transition-all text-sm"
+                    placeholder="Type your observation here..."></textarea>
+            </section>
+
+            <section>
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
+                <div id="cats-container" class="grid grid-cols-1 gap-3"></div>
+            </section>
+
+            <hr class="border-gray-800 my-8">
+
+            <section>
+                <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> My Sent Observations (Tap text to edit)
+                </label>
+                <div id="my-contributions-list">
+                    <p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>
+                </div>
+            </section>
+        </div>
     </div>
 
     <script>
@@ -95,60 +120,86 @@
         localStorage.setItem('participantId', participantId);
         let globalCats = [];
 
-        // SYNC CONFIG
-        db.ref('config').on('value', snap => {
-            const config = snap.val();
-            if (!config) return;
-            globalCats = config.cats || [];
-            document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
-
-            document.getElementById('steps-container').innerHTML = config.steps.map(step => `
-                <button onclick="selectStep(this, '${step}')" 
-                    class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">
-                    ${step}
-                </button>
-            `).join('');
-
-            document.getElementById('cats-container').innerHTML = config.cats.map(cat => `
-                <button onclick="submitInstant('${cat.name}', '${cat.color}')" 
-                    class="p-4 rounded-xl text-xs font-black uppercase border-b-4 active:translate-y-1 transition-all text-left flex justify-between items-center"
-                    style="background-color: ${cat.color}20; color: ${cat.color}; border-color: ${cat.color};">
-                    ${cat.name}
-                    <span class="opacity-50 text-[18px]">→</span>
-                </button>
-            `).join('');
-        });
-
-        // SYNC PERSONAL CONTRIBUTIONS
-        db.ref('notes').on('value', snap => {
-            const list = document.getElementById('my-contributions-list');
-            const data = snap.val() || {};
-            const myNotes = Object.entries(data)
-                .filter(([id, n]) => n.sender === participantId)
-                .reverse();
-
-            if (myNotes.length === 0) {
-                list.innerHTML = '<p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>';
-                return;
+        // --- ROOM VALIDATION LOGIC ---
+        window.addEventListener('load', () => {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('room');
+            if (code) {
+                document.getElementById('roomInput').value = code;
+                validateRoom(code);
             }
-
-            list.innerHTML = myNotes.map(([id, n]) => `
-                <div class="my-issue-card" style="border-left-color: ${n.color}">
-                    <div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span>
-                        <span class="cat-pill" 
-                              style="background: ${n.color}; color: white;" 
-                              onclick="cycleCategory('${id}', '${n.category}')">
-                            ${n.category} ⚡
-                        </span>
-                    </div>
-                    <div contenteditable="true" 
-                         class="text-xs font-bold leading-tight outline-none focus:text-blue-600"
-                         onblur="updateMyNote('${id}', this.innerText)">${n.text}</div>
-                </div>
-            `).join('');
         });
+
+        function validateRoom(codeOverride) {
+            const input = codeOverride || document.getElementById('roomInput').value.toUpperCase();
+            db.ref('config/roomCode').once('value', snapshot => {
+                if (input === snapshot.val()) {
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('app-interface').style.display = 'block';
+                    document.getElementById('activeRoomCode').innerText = `ROOM: ${input}`;
+                    initParticipantSync();
+                } else {
+                    document.getElementById('errorMsg').classList.remove('hidden');
+                    document.getElementById('joinBtn').innerText = "Join Workshop";
+                }
+            });
+        }
+
+        // --- YOUR ORIGINAL PARTICIPANT LOGIC ---
+        function initParticipantSync() {
+            db.ref('config').on('value', snap => {
+                const config = snap.val();
+                if (!config) return;
+                globalCats = config.cats || [];
+                document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
+
+                document.getElementById('steps-container').innerHTML = (config.steps || []).map(step => `
+                    <button onclick="selectStep(this, '${step}')" 
+                        class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">
+                        ${step}
+                    </button>
+                `).join('');
+
+                document.getElementById('cats-container').innerHTML = (config.cats || []).map(cat => `
+                    <button onclick="submitInstant('${cat.name}', '${cat.color}')" 
+                        class="p-4 rounded-xl text-xs font-black uppercase border-b-4 active:translate-y-1 transition-all text-left flex justify-between items-center"
+                        style="background-color: ${cat.color}20; color: ${cat.color}; border-color: ${cat.color};">
+                        ${cat.name}
+                        <span class="opacity-50 text-[18px]">→</span>
+                    </button>
+                `).join('');
+            });
+
+            db.ref('notes').on('value', snap => {
+                const list = document.getElementById('my-contributions-list');
+                const data = snap.val() || {};
+                const myNotes = Object.entries(data)
+                    .filter(([id, n]) => n.sender === participantId)
+                    .reverse();
+
+                if (myNotes.length === 0) {
+                    list.innerHTML = '<p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>';
+                    return;
+                }
+
+                list.innerHTML = myNotes.map(([id, n]) => `
+                    <div class="my-issue-card" style="border-left-color: ${n.color}">
+                        <div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span>
+                            <span class="cat-pill" 
+                                  style="background: ${n.color}; color: white;" 
+                                  onclick="cycleCategory('${id}', '${n.category}')">
+                                ${n.category} ⚡
+                            </span>
+                        </div>
+                        <div contenteditable="true" 
+                             class="text-xs font-bold leading-tight outline-none focus:text-blue-600"
+                             onblur="updateMyNote('${id}', this.innerText)">${n.text}</div>
+                    </div>
+                `).join('');
+            });
+        }
 
         function selectStep(btn, step) {
             document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
