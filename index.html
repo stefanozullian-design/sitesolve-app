@@ -7,14 +7,18 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
         .step-btn.active { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
         .submit-overlay { display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.9); z-index: 100; align-items: center; justify-content: center; }
-        /* Modificado: white-space: pre-line permite saltos de línea para los bullet points */
         .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; white-space: pre-line; }
         .delete-btn { position: absolute; top: 8px; right: 12px; color: #ef4444; font-weight: 900; font-size: 14px; cursor: pointer; }
         #login-screen { position: fixed; inset: 0; background: #030712; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        
+        /* Estilos para la lista de ranking */
+        .rank-item-vote { background: white; color: black; padding: 15px; border-radius: 10px; font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-left: 8px solid; margin-bottom: 8px; }
+        .sortable-ghost { opacity: 0.3; background: #3b82f6; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
@@ -42,7 +46,7 @@
             <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
         </header>
 
-        <div class="space-y-6 max-w-md mx-auto w-full pb-6">
+        <div id="screen-input" class="space-y-6 max-w-md mx-auto w-full pb-6">
             <section>
                 <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
                 <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
@@ -63,6 +67,15 @@
                 <div id="my-contributions-list"></div>
             </section>
         </div>
+
+        <div id="screen-ranking" class="hidden space-y-4 max-w-md mx-auto w-full pb-6">
+            <div class="bg-blue-600/20 p-4 rounded-xl border border-blue-500/40">
+                <h2 id="ranking-title" class="text-lg font-black text-blue-400 uppercase italic leading-tight">Ranking</h2>
+                <p class="text-[10px] font-bold text-gray-400 uppercase mt-1">Arrastra hacia arriba lo más importante</p>
+            </div>
+            <div id="ranking-list" class="space-y-2"></div>
+            <button onclick="exitRanking()" class="w-full py-3 text-[10px] font-black uppercase text-gray-500 border border-gray-800 rounded-xl">Volver a mis notas</button>
+        </div>
     </div>
 
     <script>
@@ -74,6 +87,7 @@
         let selectedStep = "";
         let participantId = localStorage.getItem('participantId') || 'p_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('participantId', participantId);
+        let sortableInstance = null;
 
         function initApp() {
             if (!room) {
@@ -89,14 +103,12 @@
 
         function enterRoomManually() {
             const inputCode = document.getElementById('manualRoomInput').value.toUpperCase().trim();
-            if (inputCode.length === 6) {
-                window.location.search = "?room=" + inputCode;
-            } else {
-                alert("Please enter a valid 6-character code.");
-            }
+            if (inputCode.length === 6) { window.location.search = "?room=" + inputCode; } 
+            else { alert("Please enter a valid 6-character code."); }
         }
 
         function startListening() {
+            // Escuchar configuración (pasos y categorías)
             db.ref(`rooms/${room}/config`).on('value', snap => {
                 const config = snap.val();
                 if (!config) return;
@@ -111,6 +123,7 @@
                 `).join('');
             });
 
+            // Escuchar mis notas
             db.ref(`rooms/${room}/notes`).on('value', snap => {
                 const list = document.getElementById('my-contributions-list');
                 const myNotes = Object.entries(snap.val() || {}).filter(([id, n]) => n.sender === participantId).reverse();
@@ -118,6 +131,62 @@
                     <div class="my-issue-card" style="border-left-color: ${n.color}"><div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div><div class="text-[8px] font-black uppercase text-gray-400 mb-1">${n.step}</div><div class="text-xs font-bold leading-tight">${n.text}</div></div>
                 `).join('');
             });
+
+            // ESCUCHAR CONTROL REMOTO DEL MODERADOR
+            db.ref(`rooms/${room}/remote_control`).on('value', snap => {
+                const control = snap.val();
+                if (control && control.targetCategory) {
+                    switchToRanking(control.targetCategory);
+                }
+            });
+        }
+
+        function switchToRanking(catName) {
+            document.getElementById('screen-input').classList.add('hidden');
+            document.getElementById('screen-ranking').classList.remove('hidden');
+            document.getElementById('ranking-title').innerText = "PRIORITIZE: " + catName;
+            
+            db.ref(`rooms/${room}/matrix_nodes`).once('value', snap => {
+                const nodes = snap.val() || {};
+                const listContainer = document.getElementById('ranking-list');
+                listContainer.innerHTML = '';
+                
+                const filtered = Object.entries(nodes).filter(([id, n]) => n.category === catName);
+                
+                filtered.forEach(([id, n]) => {
+                    const el = document.createElement('div');
+                    el.className = "rank-item-vote";
+                    el.style.borderLeftColor = n.color;
+                    el.setAttribute('data-id', id);
+                    el.innerHTML = `<span>${n.text}</span> <span class="text-gray-300">☰</span>`;
+                    listContainer.appendChild(el);
+                });
+
+                if(sortableInstance) sortableInstance.destroy();
+                sortableInstance = new Sortable(listContainer, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: saveMyRanking
+                });
+                saveMyRanking(); // Guardar posición inicial
+            });
+        }
+
+        function saveMyRanking() {
+            const items = document.querySelectorAll('.rank-item-vote');
+            const votes = {};
+            items.forEach((item, index) => {
+                const id = item.getAttribute('data-id');
+                // 100 puntos al primero, bajando proporcionalmente
+                const score = Math.round(100 - (index / (items.length - 1 || 1)) * 90);
+                votes[id] = score;
+            });
+            db.ref(`rooms/${room}/participant_votes/${participantId}`).set(votes);
+        }
+
+        function exitRanking() {
+            document.getElementById('screen-input').classList.remove('hidden');
+            document.getElementById('screen-ranking').classList.add('hidden');
         }
 
         function selectStep(btn, step) {
