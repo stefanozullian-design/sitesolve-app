@@ -154,16 +154,21 @@ function generateNewRoom() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let result = "";
     for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+    
+    // 1. Guardamos el código localmente para usarlo en las rutas
+    currentRoom = result; 
     document.getElementById('roomDisplay').innerText = result;
     
-    // ESTA ES LA LÓGICA CORRECTA PARA GITHUB
+    // 2. CORRECCIÓN DE RUTA PARA GITHUB
     const baseUrl = window.location.href.split('moderator.html')[0];
     const participantUrl = baseUrl + "index.html?room=" + result;
     
     const qrcodeContainer = document.getElementById("qrcode");
     qrcodeContainer.innerHTML = "";
     new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
-    db.ref('config/roomCode').set(result);
+
+    // 3. RUTA CORRECTA EN FIREBASE (Para que el participante lo encuentre)
+    db.ref(`rooms/${result}/config/roomCode`).set(result);
 }
 
         // --- PRESERVED CORE FUNCTIONS ---
@@ -324,6 +329,7 @@ function generateNewRoom() {
     </script>
 </body>
 </html>
+
 
 
 
