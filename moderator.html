@@ -150,19 +150,21 @@
         ];
 
         // --- NEW: ROOM & QR LOGIC ---
-        function generateNewRoom() {
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            let result = "";
-            for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-            document.getElementById('roomDisplay').innerText = result;
-            
-            const participantUrl = window.location.href.replace('moderator.html', 'index.html') + `?room=${snapshot.val()}`;
-            
-            const qrcodeContainer = document.getElementById("qrcode");
-            qrcodeContainer.innerHTML = "";
-            new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
-            db.ref('config/roomCode').set(result);
-        }
+function generateNewRoom() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let result = "";
+    for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+    document.getElementById('roomDisplay').innerText = result;
+    
+    // ESTA ES LA LÓGICA CORRECTA PARA GITHUB
+    const baseUrl = window.location.href.split('moderator.html')[0];
+    const participantUrl = baseUrl + "index.html?room=" + result;
+    
+    const qrcodeContainer = document.getElementById("qrcode");
+    qrcodeContainer.innerHTML = "";
+    new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
+    db.ref('config/roomCode').set(result);
+}
 
         // --- PRESERVED CORE FUNCTIONS ---
         // RESTORED SORTABLE INITIALIZATION
@@ -322,6 +324,7 @@
     </script>
 </body>
 </html>
+
 
 
 
