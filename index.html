@@ -13,46 +13,55 @@
         .submit-overlay { display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.9); z-index: 100; align-items: center; justify-content: center; }
         .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; }
         .delete-btn { position: absolute; top: 8px; right: 12px; color: #ef4444; font-weight: 900; font-size: 14px; cursor: pointer; }
-        .cat-pill { font-size: 8px; font-weight: 900; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; cursor: pointer; display: inline-block; }
+        #login-screen { position: fixed; inset: 0; background: #030712; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
 
+    <div id="login-screen" style="display: none;">
+        <h1 class="text-2xl font-black text-blue-500 italic mb-2">SITESOLVE PRO</h1>
+        <p class="text-gray-500 text-xs mb-8 uppercase font-bold tracking-widest">Enter Room Code</p>
+        <input type="text" id="manualRoomInput" maxlength="6" placeholder="ABCDEF" class="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4 text-3xl font-black text-center text-blue-400 outline-none focus:border-blue-500 w-full max-w-[200px] uppercase mb-4">
+        <button onclick="enterRoomManually()" class="bg-blue-600 w-full max-w-[200px] py-4 rounded-2xl font-black uppercase shadow-lg shadow-blue-900/40">Join Workshop</button>
+    </div>
+
     <div id="successOverlay" class="submit-overlay flex-col">
-        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4 animate-bounce">
+        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4">
             <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
         </div>
         <p class="font-black uppercase tracking-tighter text-xl text-green-500">Observation Sent</p>
     </div>
 
-    <header class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-xl font-black text-blue-500 italic uppercase leading-none">SiteSolve Pro</h1>
-            <p id="roomIndicator" class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Room: ---</p>
-        </div>
-        <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
-    </header>
+    <div id="main-app">
+        <header class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-xl font-black text-blue-500 italic uppercase leading-none">SiteSolve Pro</h1>
+                <p id="roomIndicator" class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Room: ---</p>
+            </div>
+            <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
+        </header>
 
-    <div class="space-y-6 max-w-md mx-auto w-full pb-6">
-        <section>
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
-            <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
-        </section>
-        <section>
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
-            <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-32 transition-all text-sm" placeholder="Type your observation here..."></textarea>
-        </section>
-        <section>
-            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
-            <div id="cats-container" class="grid grid-cols-1 gap-3"></div>
-        </section>
-        <hr class="border-gray-800 my-8">
-        <section>
-            <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> My Sent Observations
-            </label>
-            <div id="my-contributions-list"><p class="text-[10px] text-gray-600 italic">No observations sent yet.</p></div>
-        </section>
+        <div class="space-y-6 max-w-md mx-auto w-full pb-6">
+            <section>
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
+                <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
+            </section>
+            <section>
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
+                <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-32 transition-all text-sm" placeholder="Type your observation here..."></textarea>
+            </section>
+            <section>
+                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
+                <div id="cats-container" class="grid grid-cols-1 gap-3"></div>
+            </section>
+            <hr class="border-gray-800 my-8">
+            <section>
+                <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> My Sent Observations
+                </label>
+                <div id="my-contributions-list"></div>
+            </section>
+        </div>
     </div>
 
     <script>
@@ -60,21 +69,36 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // DETECT ROOM
-        const urlParams = new URLSearchParams(window.location.search);
-        const room = urlParams.get('room');
+        let room = new URLSearchParams(window.location.search).get('room');
         let selectedStep = "";
         let participantId = localStorage.getItem('participantId') || 'p_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('participantId', participantId);
-        let globalCats = [];
 
-        if (room) {
-            document.getElementById('roomIndicator').innerText = "Room: " + room;
-            // LISTEN TO CONFIG FROM ROOM
+        function initApp() {
+            if (!room) {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('main-app').style.display = 'none';
+            } else {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                document.getElementById('roomIndicator').innerText = "Room: " + room;
+                startListening();
+            }
+        }
+
+        function enterRoomManually() {
+            const inputCode = document.getElementById('manualRoomInput').value.toUpperCase().trim();
+            if (inputCode.length === 6) {
+                window.location.search = "?room=" + inputCode;
+            } else {
+                alert("Please enter a valid 6-character code.");
+            }
+        }
+
+        function startListening() {
             db.ref(`rooms/${room}/config`).on('value', snap => {
                 const config = snap.val();
                 if (!config) return;
-                globalCats = config.cats || [];
                 document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
                 document.getElementById('steps-container').innerHTML = (config.steps || []).map(step => `
                     <button onclick="selectStep(this, '${step}')" class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">${step}</button>
@@ -86,17 +110,13 @@
                 `).join('');
             });
 
-            // LISTEN TO MY NOTES IN ROOM
             db.ref(`rooms/${room}/notes`).on('value', snap => {
                 const list = document.getElementById('my-contributions-list');
                 const myNotes = Object.entries(snap.val() || {}).filter(([id, n]) => n.sender === participantId).reverse();
-                if (myNotes.length === 0) { list.innerHTML = '<p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>'; return; }
                 list.innerHTML = myNotes.map(([id, n]) => `
-                    <div class="my-issue-card" style="border-left-color: ${n.color}"><div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div><div class="flex items-center gap-2 mb-2"><span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span><span class="cat-pill" style="background: ${n.color}; color: white;">${n.category}</span></div><div class="text-xs font-bold leading-tight">${n.text}</div></div>
+                    <div class="my-issue-card" style="border-left-color: ${n.color}"><div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div><div class="text-[8px] font-black uppercase text-gray-400 mb-1">${n.step}</div><div class="text-xs font-bold leading-tight">${n.text}</div></div>
                 `).join('');
             });
-        } else {
-            alert("Please scan a QR code to join a room.");
         }
 
         function selectStep(btn, step) {
@@ -105,18 +125,19 @@
             selectedStep = step;
         }
 
-        function deleteMyNote(id) { if(confirm("Delete?")) db.ref(`rooms/${room}/notes/${id}`).remove(); }
-
         function submitInstant(catName, catColor) {
             const text = document.getElementById('note-input').value.trim();
-            if (!selectedStep || !text) { alert("Select Step and Type something!"); return; }
-            const overlay = document.getElementById('successOverlay');
-            overlay.style.display = 'flex';
+            if (!selectedStep || !text) { alert("Select Step and type your observation!"); return; }
+            document.getElementById('successOverlay').style.display = 'flex';
             db.ref(`rooms/${room}/notes`).push({ step: selectedStep, category: catName, color: catColor, text: text, timestamp: Date.now(), sender: participantId }).then(() => {
                 document.getElementById('note-input').value = "";
-                setTimeout(() => { overlay.style.display = 'none'; }, 800);
+                setTimeout(() => { document.getElementById('successOverlay').style.display = 'none'; }, 800);
             });
         }
+
+        function deleteMyNote(id) { if(confirm("Delete?")) db.ref(`rooms/${room}/notes/${id}`).remove(); }
+
+        initApp();
     </script>
 </body>
 </html>
