@@ -7,75 +7,64 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <style>
-        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
+        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; overflow-x: hidden; }
         .step-btn.active { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
         .submit-overlay { display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.9); z-index: 100; align-items: center; justify-content: center; }
         .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; white-space: pre-line; }
-        .delete-btn { position: absolute; top: 8px; right: 12px; color: #ef4444; font-weight: 900; font-size: 14px; cursor: pointer; }
         #login-screen { position: fixed; inset: 0; background: #030712; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         
-        /* Estilos para la lista de ranking */
-        .rank-item-vote { background: white; color: black; padding: 15px; border-radius: 10px; font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; align-items: center; border-left: 8px solid; margin-bottom: 8px; }
-        .sortable-ghost { opacity: 0.3; background: #3b82f6; }
+        /* Estilos Zona de Votación */
+        #vote-canvas { height: 60vh; background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.1); border-radius: 20px; position: relative; overflow: hidden; margin: 10px 0; }
+        .rank-bubble { position: absolute; width: 85%; left: 7.5%; background: white; color: black; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 11px; border-left: 8px solid; touch-action: none; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .y-axis-label { position: absolute; right: 10px; font-size: 8px; font-weight: 900; color: #4b5563; text-transform: uppercase; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
 
     <div id="login-screen" style="display: none;">
         <h1 class="text-2xl font-black text-blue-500 italic mb-2">SITESOLVE PRO</h1>
-        <p class="text-gray-500 text-xs mb-8 uppercase font-bold tracking-widest">Enter Room Code</p>
-        <input type="text" id="manualRoomInput" maxlength="6" placeholder="ABCDEF" class="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4 text-3xl font-black text-center text-blue-400 outline-none focus:border-blue-500 w-full max-w-[200px] uppercase mb-4">
-        <button onclick="enterRoomManually()" class="bg-blue-600 w-full max-w-[200px] py-4 rounded-2xl font-black uppercase shadow-lg shadow-blue-900/40">Join Workshop</button>
-    </div>
-
-    <div id="successOverlay" class="submit-overlay flex-col">
-        <div class="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-        </div>
-        <p class="font-black uppercase tracking-tighter text-xl text-green-500">Observation Sent</p>
+        <input type="text" id="manualRoomInput" maxlength="6" placeholder="ROOM CODE" class="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4 text-3xl font-black text-center text-blue-400 outline-none w-full max-w-[200px] uppercase mb-4">
+        <button onclick="enterRoomManually()" class="bg-blue-600 w-full max-w-[200px] py-4 rounded-2xl font-black uppercase">Join</button>
     </div>
 
     <div id="main-app">
-        <header class="flex justify-between items-center mb-6">
+        <header class="flex justify-between items-center mb-4">
             <div>
-                <h1 class="text-xl font-black text-blue-500 italic uppercase leading-none">SiteSolve Pro</h1>
-                <p id="roomIndicator" class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-1">Room: ---</p>
+                <h1 class="text-lg font-black text-blue-500 italic uppercase">SiteSolve Pro</h1>
+                <p id="roomIndicator" class="text-[8px] text-gray-500 font-bold uppercase tracking-widest">---</p>
             </div>
             <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
         </header>
 
-        <div id="screen-input" class="space-y-6 max-w-md mx-auto w-full pb-6">
-            <section>
-                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">1. Location / Step</label>
-                <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
-            </section>
-            <section>
-                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">2. Describe Issue</label>
-                <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white placeholder-gray-700 focus:border-blue-500 outline-none h-32 transition-all text-sm" placeholder="Type your observation here..."></textarea>
-            </section>
-            <section>
-                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 block">3. Tap Category to Submit</label>
-                <div id="cats-container" class="grid grid-cols-1 gap-3"></div>
-            </section>
-            <hr class="border-gray-800 my-8">
-            <section>
-                <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> My Sent Observations
-                </label>
-                <div id="my-contributions-list"></div>
-            </section>
+        <div id="screen-input" class="space-y-4">
+            <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
+            <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white text-sm h-24 outline-none" placeholder="Describe issue..."></textarea>
+            <div id="cats-container" class="space-y-2"></div>
+            <div id="my-contributions-list" class="mt-4"></div>
         </div>
 
-        <div id="screen-ranking" class="hidden space-y-4 max-w-md mx-auto w-full pb-6">
-            <div class="bg-blue-600/20 p-4 rounded-xl border border-blue-500/40">
-                <h2 id="ranking-title" class="text-lg font-black text-blue-400 uppercase italic leading-tight">Ranking</h2>
-                <p class="text-[10px] font-bold text-gray-400 uppercase mt-1">Arrastra hacia arriba lo más importante</p>
+        <div id="screen-ranking" class="hidden flex flex-col h-[85vh]">
+            <div class="text-center mb-2">
+                <h2 id="ranking-title" class="text-blue-400 font-black uppercase italic italic text-sm">Prioritize Category</h2>
+                <div class="flex justify-between text-[8px] font-black text-gray-500 mt-1 uppercase">
+                    <span>↑ CRITICAL (100)</span>
+                    <span>MINOR (0) ↓</span>
+                </div>
             </div>
-            <div id="ranking-list" class="space-y-2"></div>
-            <button onclick="exitRanking()" class="w-full py-3 text-[10px] font-black uppercase text-gray-500 border border-gray-800 rounded-xl">Volver a mis notas</button>
+
+            <div id="vote-canvas">
+                <span class="y-axis-label top-4">100</span>
+                <span class="y-axis-label bottom-4">0</span>
+                </div>
+
+            <button onclick="exitRanking()" class="w-full py-3 mt-4 text-[10px] font-black uppercase text-gray-500 bg-gray-900 rounded-xl">Back to Observations</button>
         </div>
+    </div>
+
+    <div id="successOverlay" class="submit-overlay flex-col">
+        <p class="font-black text-green-500 uppercase">Sent!</p>
     </div>
 
     <script>
@@ -87,101 +76,87 @@
         let selectedStep = "";
         let participantId = localStorage.getItem('participantId') || 'p_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('participantId', participantId);
-        let sortableInstance = null;
 
         function initApp() {
-            if (!room) {
-                document.getElementById('login-screen').style.display = 'flex';
-                document.getElementById('main-app').style.display = 'none';
-            } else {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('main-app').style.display = 'block';
-                document.getElementById('roomIndicator').innerText = "Room: " + room;
-                startListening();
-            }
+            if (!room) { document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; } 
+            else { document.getElementById('login-screen').style.display = 'none'; startListening(); }
         }
 
         function enterRoomManually() {
-            const inputCode = document.getElementById('manualRoomInput').value.toUpperCase().trim();
-            if (inputCode.length === 6) { window.location.search = "?room=" + inputCode; } 
-            else { alert("Please enter a valid 6-character code."); }
+            const code = document.getElementById('manualRoomInput').value.toUpperCase().trim();
+            if (code.length === 6) window.location.search = "?room=" + code;
         }
 
         function startListening() {
-            // Escuchar configuración (pasos y categorías)
             db.ref(`rooms/${room}/config`).on('value', snap => {
-                const config = snap.val();
-                if (!config) return;
-                document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
-                document.getElementById('steps-container').innerHTML = (config.steps || []).map(step => `
-                    <button onclick="selectStep(this, '${step}')" class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">${step}</button>
-                `).join('');
-                document.getElementById('cats-container').innerHTML = (config.cats || []).map(cat => `
-                    <button onclick="submitInstant('${cat.name}', '${cat.color}')" class="p-4 rounded-xl text-xs font-black uppercase border-b-4 active:translate-y-1 transition-all text-left flex justify-between items-center" style="background-color: ${cat.color}20; color: ${cat.color}; border-color: ${cat.color};">
-                        ${cat.name} <span class="opacity-50 text-[18px]">→</span>
-                    </button>
-                `).join('');
+                const config = snap.val(); if (!config) return;
+                document.getElementById('status-dot').className = "w-2 h-2 bg-green-500 rounded-full";
+                document.getElementById('steps-container').innerHTML = (config.steps || []).map(step => `<button onclick="selectStep(this, '${step}')" class="step-btn bg-gray-900 border border-gray-800 p-2 rounded text-[9px] font-bold uppercase transition-all">${step}</button>`).join('');
+                document.getElementById('cats-container').innerHTML = (config.cats || []).map(cat => `<button onclick="submitInstant('${cat.name}', '${cat.color}')" class="w-full p-3 rounded-xl text-[10px] font-black uppercase text-left flex justify-between items-center" style="background:${cat.color}20; color:${cat.color}; border:1px solid ${cat.color};">${cat.name} <span>→</span></button>`).join('');
             });
 
-            // Escuchar mis notas
             db.ref(`rooms/${room}/notes`).on('value', snap => {
-                const list = document.getElementById('my-contributions-list');
                 const myNotes = Object.entries(snap.val() || {}).filter(([id, n]) => n.sender === participantId).reverse();
-                list.innerHTML = myNotes.map(([id, n]) => `
-                    <div class="my-issue-card" style="border-left-color: ${n.color}"><div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div><div class="text-[8px] font-black uppercase text-gray-400 mb-1">${n.step}</div><div class="text-xs font-bold leading-tight">${n.text}</div></div>
-                `).join('');
+                document.getElementById('my-contributions-list').innerHTML = myNotes.map(([id, n]) => `<div class="my-issue-card" style="border-left-color:${n.color}"><div class="text-[7px] font-black uppercase text-gray-400">${n.step}</div><div class="text-[11px] font-bold">${n.text}</div></div>`).join('');
             });
 
             // ESCUCHAR CONTROL REMOTO DEL MODERADOR
             db.ref(`rooms/${room}/remote_control`).on('value', snap => {
                 const control = snap.val();
-                if (control && control.targetCategory) {
-                    switchToRanking(control.targetCategory);
-                }
+                if (control && control.targetCategory) showRankingView(control.targetCategory);
             });
         }
 
-        function switchToRanking(catName) {
+        function showRankingView(catName) {
             document.getElementById('screen-input').classList.add('hidden');
             document.getElementById('screen-ranking').classList.remove('hidden');
-            document.getElementById('ranking-title').innerText = "PRIORITIZE: " + catName;
+            document.getElementById('ranking-title').innerText = "VOTE IMPORTANCE: " + catName;
             
+            const canvas = document.getElementById('vote-canvas');
+            canvas.innerHTML = '<span class="y-axis-label top-4">100</span><span class="y-axis-label bottom-4">0</span>';
+
             db.ref(`rooms/${room}/matrix_nodes`).once('value', snap => {
-                const nodes = snap.val() || {};
-                const listContainer = document.getElementById('ranking-list');
-                listContainer.innerHTML = '';
+                const nodes = Object.entries(snap.val() || {}).filter(([id, n]) => n.category === catName);
                 
-                const filtered = Object.entries(nodes).filter(([id, n]) => n.category === catName);
-                
-                filtered.forEach(([id, n]) => {
-                    const el = document.createElement('div');
-                    el.className = "rank-item-vote";
-                    el.style.borderLeftColor = n.color;
-                    el.setAttribute('data-id', id);
-                    el.innerHTML = `<span>${n.text}</span> <span class="text-gray-300">☰</span>`;
-                    listContainer.appendChild(el);
-                });
+                nodes.forEach(([id, n], index) => {
+                    const bubble = document.createElement('div');
+                    bubble.className = "rank-bubble";
+                    bubble.style.borderLeftColor = n.color;
+                    bubble.innerText = n.text;
+                    // Posición inicial escalonada
+                    const initialY = 40 + (index * 60);
+                    bubble.style.top = initialY + 'px';
+                    bubble.setAttribute('data-id', id);
+                    bubble.setAttribute('data-y', initialY);
+                    canvas.appendChild(bubble);
 
-                if(sortableInstance) sortableInstance.destroy();
-                sortableInstance = new Sortable(listContainer, {
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    onEnd: saveMyRanking
+                    interact(bubble).draggable({
+                        listeners: {
+                            move(event) {
+                                const target = event.target;
+                                const canvasH = canvas.offsetHeight;
+                                let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                                
+                                // Limitar dentro del canvas
+                                y = Math.max(0, Math.min(y, canvasH - 60));
+                                target.style.top = y + 'px';
+                                target.setAttribute('data-y', y);
+                            },
+                            end(event) {
+                                const target = event.target;
+                                const canvasH = canvas.offsetHeight;
+                                const currentY = parseFloat(target.getAttribute('data-y'));
+                                // Calcular score: arriba = 100, abajo = 0
+                                const score = Math.round(100 - (currentY / (canvasH - 60)) * 100);
+                                const nodeId = target.getAttribute('data-id');
+                                
+                                // Guardar voto individual en Firebase
+                                db.ref(`rooms/${room}/participant_votes/${participantId}/${nodeId}`).set(score);
+                            }
+                        }
+                    });
                 });
-                saveMyRanking(); // Guardar posición inicial
             });
-        }
-
-        function saveMyRanking() {
-            const items = document.querySelectorAll('.rank-item-vote');
-            const votes = {};
-            items.forEach((item, index) => {
-                const id = item.getAttribute('data-id');
-                // 100 puntos al primero, bajando proporcionalmente
-                const score = Math.round(100 - (index / (items.length - 1 || 1)) * 90);
-                votes[id] = score;
-            });
-            db.ref(`rooms/${room}/participant_votes/${participantId}`).set(votes);
         }
 
         function exitRanking() {
@@ -197,15 +172,12 @@
 
         function submitInstant(catName, catColor) {
             const text = document.getElementById('note-input').value.trim();
-            if (!selectedStep || !text) { alert("Select Step and type your observation!"); return; }
+            if (!selectedStep || !text) return alert("Select Step and type text!");
+            db.ref(`rooms/${room}/notes`).push({ step: selectedStep, category: catName, color: catColor, text: text, sender: participantId, timestamp: Date.now() });
+            document.getElementById('note-input').value = "";
             document.getElementById('successOverlay').style.display = 'flex';
-            db.ref(`rooms/${room}/notes`).push({ step: selectedStep, category: catName, color: catColor, text: text, timestamp: Date.now(), sender: participantId }).then(() => {
-                document.getElementById('note-input').value = "";
-                setTimeout(() => { document.getElementById('successOverlay').style.display = 'none'; }, 800);
-            });
+            setTimeout(() => { document.getElementById('successOverlay').style.display = 'none'; }, 800);
         }
-
-        function deleteMyNote(id) { if(confirm("Delete?")) db.ref(`rooms/${room}/notes/${id}`).remove(); }
 
         initApp();
     </script>
