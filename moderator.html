@@ -3,36 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SiteSolve Pro - Moderator</title>
+    <title>SiteSolve Pro - Master Hub</title>
+    
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
+        .tab-content { display: none; min-height: 80vh; }
+        .tab-content.active { display: block; }
+        nav button.active-tab { background-color: #1e3a8a; border-color: #3b82f6; color: white; }
+        .wall-card { background: white; color: black; padding: 12px; border-radius: 8px; border-left: 6px solid; margin-bottom: 10px; font-weight: 600; }
+    </style>
 </head>
-<body class="bg-gray-950 text-white font-sans min-h-screen">
-    <nav class="bg-gray-900 p-4 border-b border-gray-800 flex gap-4">
-        <button onclick="showTab('setup')" class="font-bold text-xs uppercase text-blue-400">1. Setup</button>
-        <button onclick="showTab('wall')" class="font-bold text-xs uppercase text-gray-400">2. Live Wall</button>
+<body class="min-h-screen flex flex-col">
+
+    <nav class="bg-gray-900 border-b border-gray-800 p-2 flex gap-2 h-[60px] sticky top-0 z-50">
+        <button onclick="showTab('setup')" id="btn-setup" class="flex-1 rounded-lg text-[10px] font-black uppercase tracking-tighter active-tab border border-transparent">1. Setup</button>
+        <button onclick="showTab('wall')" id="btn-wall" class="flex-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-transparent text-gray-500">2. Live Wall</button>
+        <button onclick="showTab('export')" id="btn-export" class="flex-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-transparent text-gray-500">3. Export & ROI</button>
     </nav>
 
-    <div id="setup" class="p-8 max-w-2xl mx-auto">
-        <div class="bg-gray-900 p-6 rounded-2xl border border-white/10 mb-6">
-            <input type="text" id="workshopTitle" placeholder="Workshop Name..." class="w-full bg-transparent text-2xl font-black border-b border-gray-800 mb-6 outline-none focus:border-blue-500">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-[10px] font-bold text-gray-500 uppercase">Room Code</p>
-                    <p id="roomDisplay" class="text-3xl font-black text-blue-500 tracking-widest">------</p>
+    <div id="setup-tab" class="tab-content active p-6">
+        <div class="max-w-4xl mx-auto space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-900/50 p-8 rounded-3xl border border-white/5">
+                <div class="space-y-4">
+                    <label class="text-[10px] font-black text-blue-400 uppercase tracking-widest">Workshop Identity</label>
+                    <input type="text" id="workshopTitle" placeholder="NAME YOUR PROJECT..." class="bg-transparent text-3xl font-black text-white outline-none uppercase italic border-b-2 border-gray-800 focus:border-blue-500 w-full pb-2">
+                    <p class="text-gray-500 text-xs">Define el nombre que verán los participantes en sus dispositivos.</p>
                 </div>
-                <div id="qrcode" class="p-2 bg-white rounded-lg"></div>
+                <div class="flex flex-col items-center justify-center bg-white/5 rounded-2xl p-6">
+                    <div id="qrcode" class="p-3 bg-white rounded-xl mb-4"></div>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Room Access Code</p>
+                    <p id="roomDisplay" class="text-3xl font-black text-blue-400 tracking-[0.2em]">------</p>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="generateNewRoom()" class="w-full bg-gray-800 hover:bg-gray-700 py-4 rounded-2xl font-bold uppercase text-xs transition-all">Generate New Room</button>
+                <button onclick="pushConfig()" class="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase text-sm shadow-xl shadow-blue-900/20 transition-all">Sync & Start Workshop</button>
             </div>
         </div>
-        <button onclick="generateNewRoom()" class="w-full bg-gray-800 py-3 rounded-xl mb-3 font-bold uppercase text-xs">New Room</button>
-        <button onclick="pushConfig()" class="w-full bg-blue-600 py-4 rounded-xl font-black uppercase shadow-lg shadow-blue-900/40">Sync & Start Workshop</button>
     </div>
 
-    <div id="wall" class="p-8 hidden">
-        <div id="columnContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    <div id="wall-tab" class="tab-content p-6">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-black italic uppercase text-blue-500">Real-time Observations</h2>
+            <div id="stats" class="text-[10px] font-bold bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full border border-blue-500/20 uppercase">0 Notes Received</div>
+        </div>
+        <div id="columnContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            </div>
+    </div>
+
+    <div id="export-tab" class="tab-content p-6">
+        <div class="max-w-4xl mx-auto bg-gray-900/50 p-8 rounded-3xl border border-white/5 text-center">
+            <h2 class="text-3xl font-black uppercase italic mb-8">Data & ROI Export</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-500 p-8 rounded-2xl flex flex-col items-center gap-3 transition-all">
+                    <span class="text-4xl">📊</span>
+                    <span class="font-black uppercase text-sm">Download Excel Report</span>
+                </button>
+                <button onclick="exportToPDF()" class="bg-white hover:bg-gray-200 text-black p-8 rounded-2xl flex flex-col items-center gap-3 transition-all">
+                    <span class="text-4xl">📄</span>
+                    <span class="font-black uppercase text-sm">Generate PDF Summary</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -47,44 +86,102 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        let currentRoom = "";
+        let currentRoom = localStorage.getItem('lastRoom') || "";
 
         function generateNewRoom() {
-            currentRoom = Math.random().toString(36).substring(2, 8).toUpperCase();
-            document.getElementById('roomDisplay').innerText = currentRoom;
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let result = "";
+            for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+            currentRoom = result;
+            localStorage.setItem('lastRoom', result);
+            updateUI(result);
+            db.ref(`rooms/${result}/config/roomCode`).set(result);
+        }
+
+        function updateUI(code) {
+            document.getElementById('roomDisplay').innerText = code;
             const baseUrl = window.location.href.split('moderator.html')[0];
-            const pUrl = baseUrl + "index.html?room=" + currentRoom;
+            const pUrl = baseUrl + "index.html?room=" + code;
             document.getElementById("qrcode").innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), { text: pUrl, width: 100, height: 100 });
-            db.ref(`rooms/${currentRoom}/config/roomCode`).set(currentRoom);
+            new QRCode(document.getElementById("qrcode"), { text: pUrl, width: 140, height: 140 });
         }
 
         function pushConfig() {
-            if(!currentRoom) return alert("Generate a room first!");
-            const title = document.getElementById('workshopTitle').value || "Workshop";
-            db.ref(`rooms/${currentRoom}/config`).update({
+            if(!currentRoom) return alert("Please generate a room code first.");
+            const title = document.getElementById('workshopTitle').value || "SiteSolve Workshop";
+            
+            // Re-introducimos los pasos y categorías que tenías antes
+            const configData = {
                 title: title,
-                steps: ["Step 1", "Step 2", "Step 3"],
-                cats: [{name: "UX", color: "#3b82f6"}, {name: "Dev", color: "#ef4444"}]
-            }).then(() => alert("Sincronizado! El participante ya puede ver los datos."));
+                steps: ["1. Empathy / UX", "2. Technical / Backend", "3. Business / Strategy", "4. Ideation"],
+                cats: [
+                    {name: "Painless", color: "#3b82f6"},
+                    {name: "Critical", color: "#ef4444"},
+                    {name: "Opportunity", color: "#10b981"},
+                    {name: "Observation", color: "#f59e0b"}
+                ]
+            };
+
+            db.ref(`rooms/${currentRoom}/config`).update(configData).then(() => {
+                alert("SYCHRONIZED: Participants can now see the workshop structure.");
+            });
         }
 
-        function showTab(id) {
-            document.getElementById('setup').classList.toggle('hidden', id !== 'setup');
-            document.getElementById('wall').classList.toggle('hidden', id !== 'wall');
-            if(id === 'wall') renderWall();
+        function showTab(tId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-tab', 'text-gray-500'));
+            document.getElementById(tId + '-tab').classList.add('active');
+            document.getElementById('btn-' + tId).classList.add('active-tab');
+            if(tId === 'wall') renderWall();
         }
 
         function renderWall() {
+            if(!currentRoom) return;
+            const container = document.getElementById('columnContainer');
             db.ref(`rooms/${currentRoom}/notes`).on('value', snap => {
-                const container = document.getElementById('columnContainer');
-                container.innerHTML = "";
-                Object.values(snap.val() || {}).forEach(n => {
-                    container.innerHTML += `<div class="bg-white text-black p-4 rounded-lg border-l-4" style="border-color:${n.color}">${n.text}</div>`;
-                });
+                const notes = snap.val() || {};
+                const entries = Object.entries(notes);
+                document.getElementById('stats').innerText = `${entries.length} Notes Received`;
+                
+                container.innerHTML = entries.reverse().map(([id, n]) => `
+                    <div class="wall-card shadow-lg animate-in slide-in-from-bottom-2 duration-300" style="border-left-color:${n.color}">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[8px] font-black uppercase text-gray-400">${n.category}</span>
+                            <span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span>
+                        </div>
+                        <p class="text-sm leading-tight">${n.text}</p>
+                    </div>
+                `).join('');
             });
         }
-        generateNewRoom();
+
+        function exportToExcel() {
+            if(!currentRoom) return;
+            db.ref(`rooms/${currentRoom}/notes`).once('value', snapshot => {
+                const data = snapshot.val() || {};
+                const rows = Object.entries(data).map(([id, n]) => ({
+                    Workshop: document.getElementById('workshopTitle').value,
+                    Room: currentRoom,
+                    Observation: n.text,
+                    Category: n.category,
+                    Step: n.step,
+                    Date: new Date(n.timestamp).toLocaleString()
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Observations");
+                XLSX.writeFile(wb, `SiteSolve_Report_${currentRoom}.xlsx`);
+            });
+        }
+
+        function exportToPDF() {
+            const element = document.getElementById('wall-tab');
+            const opt = { margin: 1, filename: `SiteSolve_Wall_${currentRoom}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        // Recuperar sesión anterior
+        if(currentRoom) updateUI(currentRoom); else generateNewRoom();
     </script>
 </body>
 </html>
