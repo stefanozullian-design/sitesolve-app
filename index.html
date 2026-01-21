@@ -17,8 +17,8 @@
         
         /* Estilos Zona de Votación */
         #vote-canvas { height: 60vh; background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.1); border-radius: 20px; position: relative; overflow: hidden; margin: 10px 0; }
-        .rank-bubble { position: absolute; width: 85%; left: 7.5%; background: white; color: black; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 11px; border-left: 8px solid; touch-action: none; box-shadow: 0 10px 20px rgba(0,0,0,0.3); z-index: 10; }
-        .y-axis-label { position: absolute; right: 10px; font-size: 8px; font-weight: 900; color: #4b5563; text-transform: uppercase; pointer-events: none; }
+        .rank-bubble { position: absolute; width: 85%; left: 7.5%; background: white; color: black; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 11px; border-left: 8px solid; touch-action: none; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .y-axis-label { position: absolute; right: 10px; font-size: 8px; font-weight: 900; color: #4b5563; text-transform: uppercase; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
@@ -40,17 +40,17 @@
 
         <div id="screen-input" class="space-y-4">
             <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
-            <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white text-sm h-24 outline-none" placeholder="Describe observation..."></textarea>
+            <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white text-sm h-24 outline-none" placeholder="Describe issue..."></textarea>
             <div id="cats-container" class="space-y-2"></div>
             <div id="my-contributions-list" class="mt-4"></div>
         </div>
 
         <div id="screen-ranking" class="hidden flex flex-col h-[85vh]">
             <div class="text-center mb-2">
-                <h2 id="ranking-title" class="text-blue-400 font-black uppercase italic text-sm">Votación</h2>
+                <h2 id="ranking-title" class="text-blue-400 font-black uppercase italic italic text-sm">Prioritize Category</h2>
                 <div class="flex justify-between text-[8px] font-black text-gray-500 mt-1 uppercase">
-                    <span id="label-top">↑ CRITICAL (100)</span>
-                    <span id="label-bottom">MINOR (0) ↓</span>
+                    <span>↑ CRITICAL (100)</span>
+                    <span>MINOR (0) ↓</span>
                 </div>
             </div>
 
@@ -91,7 +91,6 @@
             db.ref(`rooms/${room}/config`).on('value', snap => {
                 const config = snap.val(); if (!config) return;
                 document.getElementById('status-dot').className = "w-2 h-2 bg-green-500 rounded-full";
-                document.getElementById('roomIndicator').innerText = "Room: " + room;
                 document.getElementById('steps-container').innerHTML = (config.steps || []).map(step => `<button onclick="selectStep(this, '${step}')" class="step-btn bg-gray-900 border border-gray-800 p-2 rounded text-[9px] font-bold uppercase transition-all">${step}</button>`).join('');
                 document.getElementById('cats-container').innerHTML = (config.cats || []).map(cat => `<button onclick="submitInstant('${cat.name}', '${cat.color}')" class="w-full p-3 rounded-xl text-[10px] font-black uppercase text-left flex justify-between items-center" style="background:${cat.color}20; color:${cat.color}; border:1px solid ${cat.color};">${cat.name} <span>→</span></button>`).join('');
             });
@@ -104,22 +103,15 @@
             // ESCUCHAR CONTROL REMOTO DEL MODERADOR
             db.ref(`rooms/${room}/remote_control`).on('value', snap => {
                 const control = snap.val();
-                if (control && control.targetCategory) {
-                    showRankingView(control.targetCategory, control.mode || 'importance');
-                }
+                if (control && control.targetCategory) showRankingView(control.targetCategory);
             });
         }
 
-        function showRankingView(catName, mode) {
+        function showRankingView(catName) {
             document.getElementById('screen-input').classList.add('hidden');
             document.getElementById('screen-ranking').classList.remove('hidden');
+            document.getElementById('ranking-title').innerText = "VOTE IMPORTANCE: " + catName;
             
-            // Ajustar textos según el modo solicitado por el moderador
-            const isImp = mode === 'importance';
-            document.getElementById('ranking-title').innerText = (isImp ? "VOTE IMPORTANCE: " : "VOTE EASE (EFFORT): ") + catName;
-            document.getElementById('label-top').innerText = isImp ? "↑ CRITICAL (100)" : "↑ EASY / LOW COST (100)";
-            document.getElementById('label-bottom').innerText = isImp ? "MINOR (0) ↓" : "HARD / EXPENSIVE (0) ↓";
-
             const canvas = document.getElementById('vote-canvas');
             canvas.innerHTML = '<span class="y-axis-label top-4">100</span><span class="y-axis-label bottom-4">0</span>';
 
@@ -131,7 +123,8 @@
                     bubble.className = "rank-bubble";
                     bubble.style.borderLeftColor = n.color;
                     bubble.innerText = n.text;
-                    const initialY = 60 + (index * 60);
+                    // Posición inicial escalonada
+                    const initialY = 40 + (index * 60);
                     bubble.style.top = initialY + 'px';
                     bubble.setAttribute('data-id', id);
                     bubble.setAttribute('data-y', initialY);
@@ -141,8 +134,11 @@
                         listeners: {
                             move(event) {
                                 const target = event.target;
+                                const canvasH = canvas.offsetHeight;
                                 let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-                                y = Math.max(0, Math.min(y, canvas.offsetHeight - 60));
+                                
+                                // Limitar dentro del canvas
+                                y = Math.max(0, Math.min(y, canvasH - 60));
                                 target.style.top = y + 'px';
                                 target.setAttribute('data-y', y);
                             },
@@ -150,12 +146,12 @@
                                 const target = event.target;
                                 const canvasH = canvas.offsetHeight;
                                 const currentY = parseFloat(target.getAttribute('data-y'));
-                                // Cálculo 0-100 invertido (0px en top = 100 puntos)
+                                // Calcular score: arriba = 100, abajo = 0
                                 const score = Math.round(100 - (currentY / (canvasH - 60)) * 100);
                                 const nodeId = target.getAttribute('data-id');
                                 
-                                // Guardar voto en la rama específica (importance o effort)
-                                db.ref(`rooms/${room}/participant_votes/${mode}/${participantId}/${nodeId}`).set(score);
+                                // Guardar voto individual en Firebase
+                                db.ref(`rooms/${room}/participant_votes/${participantId}/${nodeId}`).set(score);
                             }
                         }
                     });
