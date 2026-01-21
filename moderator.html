@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -135,7 +136,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let currentRoom = "";
         let currentEffortCat = null;
         const zones = [
             { id: "gt", name: "Golden Ticket", minImp: 66, maxImp: 101, minEase: 66, maxEase: 101 },
@@ -149,44 +149,50 @@
             { id: "pit", name: "Money Pit", minImp: 0, maxImp: 33, minEase: 0, maxEase: 33 }
         ];
 
+        // --- NEW: ROOM & QR LOGIC ---
         function generateNewRoom() {
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             let result = "";
             for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-            currentRoom = result;
             document.getElementById('roomDisplay').innerText = result;
             
-            // UPDATE THESE URLS TO YOUR GITHUB PAGES LINK
-            const participantUrl = `https://YOUR_GITHUB_USERNAME.github.io/YOUR_REPO_NAME/index.html?room=${result}`;
+            const participantUrl = window.location.href.replace('index.html', 'participant.html') + `?room=${result}`;
             
             const qrcodeContainer = document.getElementById("qrcode");
             qrcodeContainer.innerHTML = "";
             new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
-            
-            // Initialize room metadata
-            db.ref(`rooms/${result}/config/roomCode`).set(result);
+            db.ref('config/roomCode').set(result);
         }
+
+        // --- PRESERVED CORE FUNCTIONS ---
+        // RESTORED SORTABLE INITIALIZATION
+        new Sortable(document.getElementById('stepList'), { animation: 150, handle: '.drag-handle' });
+        new Sortable(document.getElementById('categoryList'), { animation: 150, handle: '.drag-handle' });
 
         function addRow(containerId, name = "", color = null) {
             const container = document.getElementById(containerId);
-            const row = document.createElement('div'); row.className = "row-item flex gap-2 p-2 bg-gray-800 rounded mb-2";
-            row.innerHTML = `<div class="drag-handle cursor-grab">⋮⋮</div>${color ? `<input type="color" value="${color}" class="bg-transparent">` : ''}<input type="text" value="${name}" class="bg-transparent flex-1 outline-none text-xs font-bold"><div onclick="this.parentElement.remove()" class="cursor-pointer text-red-500">✕</div>`;
+            const row = document.createElement('div'); 
+            row.className = "row-item flex items-center gap-2 p-2 bg-gray-800 rounded mb-2";
+            row.innerHTML = `
+                <div class="drag-handle cursor-move text-gray-500 hover:text-white px-2">☰</div>
+                ${color ? `<input type="color" value="${color}" class="bg-transparent w-8 h-8 cursor-pointer">` : ''}
+                <input type="text" value="${name}" class="bg-transparent flex-1 outline-none text-xs font-bold py-1" placeholder="Enter name...">
+                <div onclick="this.parentElement.remove()" class="cursor-pointer text-red-500 hover:text-red-400 px-2 font-black">✕</div>
+            `;
             container.appendChild(row);
         }
-
+        
         function pushConfig() {
-            if(!currentRoom) return alert("Generate a Room Code first.");
             const title = document.getElementById('workshopTitle').value;
             const steps = Array.from(document.querySelectorAll('#stepList input[type="text"]')).map(i => i.value);
-            const cats = Array.from(document.querySelectorAll('#categoryList .row-item')).map(r => ({ name: r.querySelector('input[type="text"]').value, color: r.querySelector('input[type="color"]').value }));
-            db.ref(`rooms/${currentRoom}/config`).update({ title, steps, cats }).then(() => alert("Synced!"));
+            const cats = Array.from(document.querySelectorAll('#categoryList .row-item')).map(r => ({ name: r.querySelector('input[type="text"]').value, color: r.querySelector('input[type="color"]')?.value || '#3b82f6' }));
+            db.ref('config').update({ title, steps, cats }).then(() => alert("Synced!"));
         }
-
         function renderWall() {
             const container = document.getElementById('columnContainer');
-            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+            db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
-                db.ref(`rooms/${currentRoom}/notes`).on('value', nSnap => {
+                db.ref('notes').on('value', nSnap => {
                     const notes = nSnap.val() || {};
                     container.innerHTML = (c.steps || []).map(step => {
                         const stepNotes = Object.entries(notes).filter(([id, n]) => n.step === step);
@@ -195,20 +201,18 @@
                 });
             });
         }
-
         function approveSynthesis() {
-            db.ref(`rooms/${currentRoom}/notes`).once('value', snap => {
+            db.ref('notes').once('value', snap => {
                 const nodes = {}; const notes = snap.val() || {};
                 Object.entries(notes).forEach(([id, n], i) => { nodes['node_'+id] = { text: n.text, color: n.color, category: n.category, step: n.step, rank_y: 100, impact: 80, effort: 50, effort_x: 150 }; });
-                db.ref(`rooms/${currentRoom}/matrix_nodes`).set(nodes).then(() => showTab('board'));
+                db.ref('matrix_nodes').set(nodes).then(() => showTab('board'));
             });
         }
-
         function renderRankingBoard() {
             const container = document.getElementById('rankingContainer');
-            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+            db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
-                db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
+                db.ref('matrix_nodes').on('value', nSnap => {
                     const nodes = nSnap.val() || {};
                     container.innerHTML = (c.cats || []).map(cat => `<div class="rank-column"><div class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</div><div class="rank-slot h-full relative" data-cat="${cat.name}"></div></div>`).join('');
                     Object.entries(nodes).forEach(([id, d]) => {
@@ -226,19 +230,18 @@
                         }, end(e) {
                             const y = parseFloat(e.target.getAttribute('data-y')); const parentH = e.target.parentElement.offsetHeight;
                             const impactVal = Math.round(100 - (y / (parentH - 50)) * 100);
-                            db.ref(`rooms/${currentRoom}/matrix_nodes/${id}`).update({ rank_y: y, impact: Math.max(0, Math.min(100, impactVal)) });
+                            db.ref(`matrix_nodes/${id}`).update({ rank_y: y, impact: Math.max(0, Math.min(100, impactVal)) });
                         }}});
                     });
                 });
             });
         }
-
         function renderEffort() {
             const nav = document.getElementById('effortCatNav'); const area = document.getElementById('effortWorkingArea');
-            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+            db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
                 nav.innerHTML = (c.cats || []).map(cat => `<button onclick="filterEffortCat('${cat.name}')" class="px-3 py-1 rounded text-[9px] font-black uppercase border transition-all" style="border-color:${cat.color}; color:${currentEffortCat===cat.name?'black':cat.color}; background:${currentEffortCat===cat.name?cat.color:'transparent'}">${cat.name}</button>`).join('');
-                db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
+                db.ref('matrix_nodes').on('value', nSnap => {
                     area.innerHTML = ''; const nodes = nSnap.val() || {};
                     Object.entries(nodes).filter(([id, d]) => !currentEffortCat || d.category === currentEffortCat).forEach(([id, d], i) => {
                         const el = document.createElement('div'); el.className = "effort-node"; el.style.borderLeftColor = d.color;
@@ -250,21 +253,19 @@
                             x = Math.max(10, Math.min(x, area.offsetWidth - 170)); t.style.left = x + 'px'; t.setAttribute('data-x', x);
                         }, end(e) {
                             const x = parseFloat(e.target.getAttribute('data-x')); const percent = Math.round((x / (area.offsetWidth - 170)) * 100);
-                            db.ref(`rooms/${currentRoom}/matrix_nodes/${id}`).update({ effort_x: x, effort: percent });
+                            db.ref(`matrix_nodes/${id}`).update({ effort_x: x, effort: percent });
                         }}});
                     });
                 });
             });
         }
-
         function filterEffortCat(name) { currentEffortCat = (currentEffortCat === name) ? null : name; renderEffort(); }
-
         function renderRoadmap() {
             const container = document.getElementById('roadmapContainer'); const masterList = document.getElementById('masterRankList'); const matrixPoints = document.getElementById('matrixPoints');
             container.innerHTML = ''; masterList.innerHTML = ''; matrixPoints.innerHTML = '';
-            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+            db.ref('config').once('value', cSnap => {
                 const c = cSnap.val() || {};
-                db.ref(`rooms/${currentRoom}/matrix_nodes`).once('value', nSnap => {
+                db.ref('matrix_nodes').once('value', nSnap => {
                     const nodes = Object.entries(nSnap.val() || {}).map(([id, n]) => ({ ...n, id, roi: Math.round((n.impact * n.effort) / 100) }));
                     const matrixBox = document.getElementById('matrixContainer'); const w = matrixBox.offsetWidth; const h = matrixBox.offsetHeight;
                     nodes.forEach(n => {
@@ -289,22 +290,26 @@
                 });
             });
         }
-
         function showTab(tId) {
             document.querySelectorAll('.tab-content, nav button').forEach(el => el.classList.remove('active', 'active-tab'));
             document.getElementById(tId + '-tab').classList.add('active');
             document.getElementById('btn-' + tId).classList.add('active-tab');
-            if(!currentRoom) return;
             if(tId === 'synthesis') renderWall();
             if(tId === 'board') renderRankingBoard();
             if(tId === 'effort') renderEffort();
             if(tId === 'final') renderRoadmap();
         }
-
-        function resetAllData() { if(confirm("Clear All for this room?")) db.ref(`rooms/${currentRoom}`).remove().then(()=>location.reload()); }
+        function resetAllData() { if(confirm("Clear All?")) db.ref('/').remove().then(()=>location.reload()); }
         
-        // Always generate a fresh room on start
-        window.addEventListener('load', () => { generateNewRoom(); });
+        // Init
+        db.ref('config/roomCode').once('value', snapshot => {
+            if (snapshot.exists()) {
+                document.getElementById('roomDisplay').innerText = snapshot.val();
+                const participantUrl = window.location.href.replace('index.html', 'participant.html') + `?room=${snapshot.val()}`;
+                new QRCode(document.getElementById("qrcode"), { text: participantUrl, width: 100, height: 100 });
+            } else { generateNewRoom(); }
+        });
+        showTab('setup');
     </script>
 </body>
 </html>
