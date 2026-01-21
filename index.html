@@ -12,25 +12,13 @@
     <style>
         body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
         .step-btn.active { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
-        
-        .submit-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(3, 7, 18, 0.9);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-        }
-
+        .submit-overlay { display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.9); z-index: 100; align-items: center; justify-content: center; }
         .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; }
         .delete-btn { position: absolute; top: 8px; right: 12px; color: #ef4444; font-weight: 900; font-size: 14px; cursor: pointer; }
-        .cat-pill { font-size: 8px; font-weight: 900; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; cursor: pointer; display: inline-block; }
-        
-        /* Login UI Styling */
         .login-card { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         #app-interface { display: none; }
         .room-input { letter-spacing: 0.5em; text-transform: uppercase; }
+        .merge-tag { font-size: 7px; font-weight: 900; background: #2563eb; color: white; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col p-4">
@@ -103,24 +91,24 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDY7diMSCZc0z2ih1fa2FLx4D47t3LJCIw",
-            authDomain: "issues-app-65527.firebaseapp.com",
-            databaseURL: "https://issues-app-65527-default-rtdb.firebaseio.com",
-            projectId: "issues-app-65527",
-            storageBucket: "issues-app-65527.firebasestorage.app",
-            messagingSenderId: "103649380899",
-            appId: "1:103649380899:web:f8f9131b9a4123d2e93f96"
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDY7diMSCZc0z2ih1fa2FLx4D47t3LJCIw", 
+            authDomain: "issues-app-65527.firebaseapp.com", 
+            databaseURL: "https://issues-app-65527-default-rtdb.firebaseio.com", 
+            projectId: "issues-app-65527", 
+            storageBucket: "issues-app-65527.firebasestorage.app", 
+            messagingSenderId: "103649380899", 
+            appId: "1:103649380899:web:f8f9131b9a4123d2e93f96" 
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         let selectedStep = "";
+        let currentRoom = "";
         let participantId = localStorage.getItem('participantId') || 'p_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('participantId', participantId);
         let globalCats = [];
 
-        // --- ROOM VALIDATION LOGIC ---
         window.addEventListener('load', () => {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('room');
@@ -131,25 +119,23 @@
         });
 
         function validateRoom(codeOverride) {
-            const input = codeOverride || document.getElementById('roomInput').value.toUpperCase();
-            db.ref('config/roomCode').once('value', snapshot => {
-                if (input === snapshot.val()) {
+            const input = (codeOverride || document.getElementById('roomInput').value).toUpperCase();
+            db.ref(`rooms/${input}/config/roomCode`).once('value', snapshot => {
+                if (snapshot.exists()) {
+                    currentRoom = input;
                     document.getElementById('login-screen').classList.add('hidden');
                     document.getElementById('app-interface').style.display = 'block';
                     document.getElementById('activeRoomCode').innerText = `ROOM: ${input}`;
-                    initParticipantSync();
+                    startParticipantSync();
                 } else {
                     document.getElementById('errorMsg').classList.remove('hidden');
-                    document.getElementById('joinBtn').innerText = "Join Workshop";
                 }
             });
         }
 
-        // --- YOUR ORIGINAL PARTICIPANT LOGIC ---
-        function initParticipantSync() {
-            db.ref('config').on('value', snap => {
-                const config = snap.val();
-                if (!config) return;
+        function startParticipantSync() {
+            db.ref(`rooms/${currentRoom}/config`).on('value', snap => {
+                const config = snap.val(); if (!config) return;
                 globalCats = config.cats || [];
                 document.getElementById('status-dot').classList.replace('bg-red-500', 'bg-green-500');
 
@@ -157,8 +143,7 @@
                     <button onclick="selectStep(this, '${step}')" 
                         class="step-btn bg-gray-900 border border-gray-800 p-3 rounded-lg text-[10px] font-bold uppercase transition-all">
                         ${step}
-                    </button>
-                `).join('');
+                    </button>`).join('');
 
                 document.getElementById('cats-container').innerHTML = (config.cats || []).map(cat => `
                     <button onclick="submitInstant('${cat.name}', '${cat.color}')" 
@@ -166,38 +151,27 @@
                         style="background-color: ${cat.color}20; color: ${cat.color}; border-color: ${cat.color};">
                         ${cat.name}
                         <span class="opacity-50 text-[18px]">→</span>
-                    </button>
-                `).join('');
+                    </button>`).join('');
             });
 
-            db.ref('notes').on('value', snap => {
+            db.ref(`rooms/${currentRoom}/notes`).on('value', snap => {
                 const list = document.getElementById('my-contributions-list');
                 const data = snap.val() || {};
-                const myNotes = Object.entries(data)
-                    .filter(([id, n]) => n.sender === participantId)
-                    .reverse();
-
-                if (myNotes.length === 0) {
-                    list.innerHTML = '<p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>';
-                    return;
-                }
-
-                list.innerHTML = myNotes.map(([id, n]) => `
+                const myNotes = Object.entries(data).filter(([id, n]) => n.sender === participantId).reverse();
+                if (myNotes.length === 0) { list.innerHTML = '<p class="text-[10px] text-gray-600 italic">No observations sent yet.</p>'; return; }
+                list.innerHTML = myNotes.map(([id, n]) => {
+                    // Always show participant's original text, even after merge
+                    const displayText = n.originalText || n.text;
+                    return `
                     <div class="my-issue-card" style="border-left-color: ${n.color}">
-                        <div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div>
+                        ${n.isMerged ? '' : `<div class="delete-btn" onclick="deleteMyNote('${id}')">✕</div>`}
                         <div class="flex items-center gap-2 mb-2">
                             <span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span>
-                            <span class="cat-pill" 
-                                  style="background: ${n.color}; color: white;" 
-                                  onclick="cycleCategory('${id}', '${n.category}')">
-                                ${n.category} ⚡
-                            </span>
+                            ${n.isMerged ? '<span class="merge-tag">Merged</span>' : ''}
                         </div>
-                        <div contenteditable="true" 
-                             class="text-xs font-bold leading-tight outline-none focus:text-blue-600"
-                             onblur="updateMyNote('${id}', this.innerText)">${n.text}</div>
-                    </div>
-                `).join('');
+                        <div contenteditable="${n.isMerged ? 'false' : 'true'}" class="text-xs font-bold outline-none" onblur="updateMyNote('${id}', this.innerText)">${displayText}</div>
+                    </div>`;
+                }).join('');
             });
         }
 
@@ -207,48 +181,34 @@
             selectedStep = step;
         }
 
-        function updateMyNote(id, newText) {
-            db.ref(`notes/${id}`).update({ text: newText.trim() });
-        }
-
-        function cycleCategory(id, currentCatName) {
-            const index = globalCats.findIndex(c => c.name === currentCatName);
-            const nextIndex = (index + 1) % globalCats.length;
-            const nextCat = globalCats[nextIndex];
-            db.ref(`notes/${id}`).update({ 
-                category: nextCat.name, 
-                color: nextCat.color 
-            });
-        }
-
-        function deleteMyNote(id) {
-            if(confirm("Delete this observation?")) db.ref(`notes/${id}`).remove();
-        }
-
         function submitInstant(catName, catColor) {
             const text = document.getElementById('note-input').value.trim();
-            if (!selectedStep) { alert("Please select a Location/Step first."); return; }
-            if (!text) { alert("Please describe the observation."); return; }
-
-            const overlay = document.getElementById('successOverlay');
-            overlay.style.display = 'flex';
-
-            const newNote = {
-                step: selectedStep,
-                category: catName,
-                color: catColor,
-                text: text,
-                timestamp: Date.now(),
-                sender: participantId,
-                wall_x: Math.random() * 50,
-                wall_y: Math.random() * 50
-            };
-
-            db.ref('notes').push(newNote).then(() => {
+            if (!selectedStep || !text) return alert("Select a Step and type your note!");
+            document.getElementById('successOverlay').style.display = 'flex';
+            db.ref(`rooms/${currentRoom}/notes`).push({
+                step: selectedStep, category: catName, color: catColor, text: text,
+                timestamp: Date.now(), sender: participantId,
+                wall_x: Math.random() * 50, wall_y: Math.random() * 50,
+                isMerged: false,
+                originalText: text // Backup of the participant's original text
+            }).then(() => {
                 document.getElementById('note-input').value = "";
-                setTimeout(() => { overlay.style.display = 'none'; }, 800);
+                setTimeout(() => { document.getElementById('successOverlay').style.display = 'none'; }, 800);
             });
         }
+
+        function updateMyNote(id, newText) { 
+            db.ref(`rooms/${currentRoom}/notes/${id}`).once('value', snap => {
+                // Participants can only edit their note if it hasn't been merged by the moderator
+                if(!snap.val().isMerged) {
+                    db.ref(`rooms/${currentRoom}/notes/${id}`).update({ 
+                        text: newText.trim(),
+                        originalText: newText.trim() 
+                    });
+                }
+            });
+        }
+        function deleteMyNote(id) { if(confirm("Delete observation?")) db.ref(`rooms/${currentRoom}/notes/${id}`).remove(); }
     </script>
 </body>
 </html>
