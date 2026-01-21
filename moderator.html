@@ -301,18 +301,28 @@
         }
         function resetAllData() { if(confirm("Clear All?")) db.ref('/').remove().then(()=>location.reload()); }
         
-        // Init
+// Init
         db.ref('config/roomCode').once('value', snapshot => {
             if (snapshot.exists()) {
-                document.getElementById('roomDisplay').innerText = snapshot.val();
-                const participantUrl = window.location.href.replace('index.html', 'participant.html') + `?room=${snapshot.val()}`;
-                new QRCode(document.getElementById("qrcode"), { text: participantUrl, width: 100, height: 100 });
-            } else { generateNewRoom(); }
+                const roomCode = snapshot.val();
+                document.getElementById('roomDisplay').innerText = roomCode;
+                
+                // CORRECCIÓN: Cambiamos 'moderator.html' por 'index.html'
+                // Esto asegura que el QR apunte al archivo del participante en GitHub
+                const participantUrl = window.location.href.replace('moderator.html', 'index.html') + `?room=${roomCode}`;
+                
+                const qrcodeContainer = document.getElementById("qrcode");
+                qrcodeContainer.innerHTML = "";
+                new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
+            } else { 
+                generateNewRoom(); 
+            }
         });
         showTab('setup');
     </script>
 </body>
 </html>
+
 
 
 
