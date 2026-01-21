@@ -3,185 +3,301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SiteSolve Pro - Master Hub</title>
+    <title>SiteSolve Pro - Moderator Master Hub</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
-        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; }
-        .tab-content { display: none; min-height: 80vh; }
-        .tab-content.active { display: block; }
-        nav button.active-tab { background-color: #1e3a8a; border-color: #3b82f6; color: white; }
-        .wall-card { background: white; color: black; padding: 12px; border-radius: 8px; border-left: 6px solid; margin-bottom: 10px; font-weight: 600; }
+        body { background-color: #030712; color: white; overflow: hidden; font-family: ui-sans-serif, system-ui; }
+        .tab-content { display: none !important; height: calc(100vh - 60px); width: 100%; }
+        .tab-content.active { display: flex !important; flex-direction: column; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        nav button.active-tab { background-color: #1e3a8a !important; color: white !important; border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.3); }
+        .wall-item { background: white; color: black; padding: 12px; border-radius: 6px; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-left-width: 8px; margin-bottom: 12px; touch-action: none; cursor: grab; z-index: 10; position: relative; }
+        .step-badge { position: absolute; top: 8px; right: 8px; font-size: 7px; font-weight: 900; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; border: 1px solid #e2e8f0; pointer-events: none; z-index: 20; }
+        .rank-column { min-width: 300px; background: rgba(15, 23, 42, 0.6); border-radius: 12px; height: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+        .rank-item { background: white; color: black; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 11px; text-transform: uppercase; cursor: grab; position: absolute; width: calc(100% - 24px); border-left-width: 8px; touch-action: none; z-index: 10; }
+        .effort-node { position: absolute; width: 160px; background: white; color: black; padding: 8px; border-radius: 4px; font-size: 9px; font-weight: 800; border-left: 4px solid; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none; z-index: 10; }
+        .matrix-container { width: 100%; aspect-ratio: 1/1; position: relative; background: #0f172a; border: 2px solid #334155; }
+        .matrix-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
+        .matrix-cell { border: 1px solid rgba(255,255,255,0.1); position: relative; }
+        .matrix-cell::after { content: attr(data-label); position: absolute; top: 4px; left: 4px; font-size: 7px; font-weight: 900; color: #475569; text-transform: uppercase; opacity: 0.6; }
+        .matrix-postit { position: absolute; width: 60px; height: 60px; background: white; color: black; font-size: 7px; font-weight: 800; padding: 6px; border-radius: 2px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); transform: translate(-50%, -50%); overflow: hidden; line-height: 1.1; border-left: 4px solid; z-index: 30; }
+        .roadmap-column { min-width: 260px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); }
+        .final-card { background: white; color: black; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border-left: 6px solid; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .roi-tag { font-family: monospace; font-size: 9px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; color: #1e40af; font-weight: 900; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="h-screen flex flex-col">
 
-    <nav class="bg-gray-900 border-b border-gray-800 p-2 flex gap-2 h-[60px] sticky top-0 z-50">
-        <button onclick="showTab('setup')" id="btn-setup" class="flex-1 rounded-lg text-[10px] font-black uppercase tracking-tighter active-tab border border-transparent">1. Setup</button>
-        <button onclick="showTab('wall')" id="btn-wall" class="flex-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-transparent text-gray-500">2. Live Wall</button>
-        <button onclick="showTab('export')" id="btn-export" class="flex-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-transparent text-gray-500">3. Export & ROI</button>
+    <nav class="bg-gray-900 border-b border-gray-800 p-2 flex gap-1 h-[60px] text-[10px] font-bold shrink-0 z-50">
+        <button onclick="showTab('setup')" class="flex-1 rounded bg-gray-800 uppercase" id="btn-setup">1. Setup</button>
+        <button onclick="showTab('synthesis')" class="flex-1 rounded bg-gray-800 uppercase" id="btn-synthesis">2. Observation Wall</button>
+        <button onclick="showTab('board')" class="flex-1 rounded bg-gray-800 uppercase" id="btn-board">3. Importance</button>
+        <button onclick="showTab('effort')" class="flex-1 rounded bg-gray-800 uppercase" id="btn-effort">4. Effort</button>
+        <button onclick="showTab('final')" class="flex-1 rounded bg-gray-800 uppercase" id="btn-final">5. ROI Roadmap</button>
     </nav>
 
-    <div id="setup-tab" class="tab-content active p-6">
-        <div class="max-w-4xl mx-auto space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-gray-900/50 p-8 rounded-3xl border border-white/5">
-                <div class="space-y-4">
-                    <label class="text-[10px] font-black text-blue-400 uppercase tracking-widest">Workshop Identity</label>
-                    <input type="text" id="workshopTitle" placeholder="NAME YOUR PROJECT..." class="bg-transparent text-3xl font-black text-white outline-none uppercase italic border-b-2 border-gray-800 focus:border-blue-500 w-full pb-2">
-                    <p class="text-gray-500 text-xs">Define el nombre que verán los participantes en sus dispositivos.</p>
+    <div id="setup-tab" class="tab-content active p-6 overflow-y-auto">
+        <div class="max-w-5xl mx-auto space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2 bg-blue-600/10 border border-blue-500/30 p-6 rounded-2xl flex flex-col gap-2">
+                    <label class="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em]">Workshop Identity</label>
+                    <input type="text" id="workshopTitle" placeholder="NAME YOUR EXERCISE..." class="bg-transparent text-3xl font-black text-white outline-none uppercase italic">
                 </div>
-                <div class="flex flex-col items-center justify-center bg-white/5 rounded-2xl p-6">
-                    <div id="qrcode" class="p-3 bg-white rounded-xl mb-4"></div>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase mb-1">Room Access Code</p>
-                    <p id="roomDisplay" class="text-3xl font-black text-blue-400 tracking-[0.2em]">------</p>
+                <div class="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col items-center justify-center gap-3">
+                    <div id="qrcode" class="p-2 bg-white rounded-lg"></div>
+                    <div class="text-center">
+                        <p class="text-[9px] font-bold text-gray-400 uppercase">Room Code</p>
+                        <p id="roomDisplay" class="text-2xl font-black tracking-widest text-blue-400">------</p>
+                    </div>
                 </div>
             </div>
-            <div class="flex flex-col gap-3">
-                <button onclick="generateNewRoom()" class="w-full bg-gray-800 hover:bg-gray-700 py-4 rounded-2xl font-bold uppercase text-xs transition-all">Generate New Room</button>
-                <button onclick="pushConfig()" class="w-full bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase text-sm shadow-xl shadow-blue-900/20 transition-all">Sync & Start Workshop</button>
+
+            <div class="flex justify-between items-center pt-4">
+                <h2 class="text-xl font-black text-gray-500 italic uppercase">Configuration</h2>
+                <div class="flex gap-4">
+                    <button onclick="generateNewRoom()" class="text-blue-400 text-[10px] font-black uppercase px-4 border border-blue-900/30 rounded-lg">New Room Code</button>
+                    <button onclick="resetAllData()" class="text-red-500 text-[10px] font-black uppercase px-4 border border-red-900/30 rounded-lg">Clear Session</button>
+                    <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest">Sync All Devices</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="setup-card bg-gray-900/50 p-6 rounded-xl border border-white/5">
+                    <div class="flex justify-between items-center mb-6"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Process Flow</h3><button onclick="addRow('stepList', '')" class="text-blue-400 font-black uppercase">+ Add Step</button></div>
+                    <div id="stepList" class="space-y-2"></div>
+                </div>
+                <div class="setup-card bg-gray-900/50 p-6 rounded-xl border border-white/5">
+                    <div class="flex justify-between items-center mb-6"><h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Categories</h3><button onclick="addRow('categoryList', '', '#3b82f6')" class="text-blue-400 font-black uppercase">+ Add Category</button></div>
+                    <div id="categoryList" class="space-y-2"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="wall-tab" class="tab-content p-6">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-2xl font-black italic uppercase text-blue-500">Real-time Observations</h2>
-            <div id="stats" class="text-[10px] font-bold bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full border border-blue-500/20 uppercase">0 Notes Received</div>
+    <div id="synthesis-tab" class="tab-content bg-[#020617]">
+        <div class="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-800">
+            <h2 class="text-sm font-black text-blue-400 uppercase italic">Observation Wall</h2>
+            <button onclick="approveSynthesis()" class="bg-green-600 px-6 py-2 rounded font-black uppercase text-[10px]">Send to Importance →</button>
         </div>
-        <div id="columnContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            </div>
+        <div id="columnContainer" class="flex-1 flex overflow-x-auto p-4 gap-4 scrollbar-hide"></div>
     </div>
 
-    <div id="export-tab" class="tab-content p-6">
-        <div class="max-w-4xl mx-auto bg-gray-900/50 p-8 rounded-3xl border border-white/5 text-center">
-            <h2 class="text-3xl font-black uppercase italic mb-8">Data & ROI Export</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-500 p-8 rounded-2xl flex flex-col items-center gap-3 transition-all">
-                    <span class="text-4xl">📊</span>
-                    <span class="font-black uppercase text-sm">Download Excel Report</span>
-                </button>
-                <button onclick="exportToPDF()" class="bg-white hover:bg-gray-200 text-black p-8 rounded-2xl flex flex-col items-center gap-3 transition-all">
-                    <span class="text-4xl">📄</span>
-                    <span class="font-black uppercase text-sm">Generate PDF Summary</span>
-                </button>
+    <div id="board-tab" class="tab-content bg-[#020617]">
+        <div class="px-6 pt-4 flex justify-between text-[10px] font-black text-gray-600 uppercase"><span>Critical (100%)</span><span>Minor (0%)</span></div>
+        <div id="rankingContainer" class="flex-1 flex overflow-x-auto p-6 gap-6 scrollbar-hide"></div>
+    </div>
+
+    <div id="effort-tab" class="tab-content bg-[#020617]">
+        <div class="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center shrink-0">
+            <h2 class="text-sm font-black text-orange-400 uppercase italic">Effort Calibration</h2>
+            <div id="effortCatNav" class="flex gap-2"></div>
+        </div>
+        <div class="flex-1 relative overflow-hidden bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:40px_40px]">
+            <div id="effortWorkingArea" class="absolute inset-0 p-6"></div>
+            <div class="absolute bottom-4 left-0 right-0 flex justify-between px-10 pointer-events-none">
+                <span class="text-[10px] font-black text-gray-500 uppercase">← High Effort (Hard)</span>
+                <span class="text-[10px] font-black text-gray-500 uppercase">Low Effort (Easy) →</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="final-tab" class="tab-content bg-[#020617] flex-row overflow-hidden">
+        <div id="pdf-area" class="flex-1 flex flex-row p-4 gap-4 overflow-hidden">
+            <div class="flex-1 flex flex-col min-w-0">
+                <div class="mb-4 flex justify-between items-center">
+                    <h2 class="text-sm font-black text-green-400 uppercase italic">Strategic Roadmap</h2>
+                    <button onclick="exportToPDF()" class="bg-white text-black px-4 py-1 rounded font-black uppercase text-[10px]">Export PDF</button>
+                </div>
+                <div id="roadmapContainer" class="flex-1 flex overflow-x-auto gap-4 scrollbar-hide"></div>
+            </div>
+            <div class="w-96 flex flex-col gap-4 shrink-0">
+                <div class="matrix-container" id="matrixContainer">
+                    <div class="matrix-grid">
+                        <div class="matrix-cell" data-label="Golden Ticket"></div><div class="matrix-cell" data-label="Strategic Win"></div><div class="matrix-cell" data-label="Major Project"></div>
+                        <div class="matrix-cell" data-label="Quick Win"></div><div class="matrix-cell" data-label="Tactical"></div><div class="matrix-cell" data-label="Hard Slog"></div>
+                        <div class="matrix-cell" data-label="Why Not?"></div><div class="matrix-cell" data-label="Filler"></div><div class="matrix-cell" data-label="Money Pit"></div>
+                    </div>
+                    <div id="matrixPoints" class="absolute inset-0 pointer-events-none"></div>
+                </div>
+                <div id="masterRankList" class="flex-1 overflow-y-auto bg-gray-900/50 rounded-xl p-4 border border-white/5"></div>
             </div>
         </div>
     </div>
 
     <script>
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDY7diMSCZc0z2ih1fa2FLx4D47t3LJCIw", 
-            authDomain: "issues-app-65527.firebaseapp.com", 
-            databaseURL: "https://issues-app-65527-default-rtdb.firebaseio.com", 
-            projectId: "issues-app-65527", 
-            storageBucket: "issues-app-65527.firebasestorage.app", 
-            messagingSenderId: "103649380899", 
-            appId: "1:103649380899:web:f8f9131b9a4123d2e93f96" 
-        };
+        const firebaseConfig = { apiKey: "AIzaSyDY7diMSCZc0z2ih1fa2FLx4D47t3LJCIw", authDomain: "issues-app-65527.firebaseapp.com", databaseURL: "https://issues-app-65527-default-rtdb.firebaseio.com", projectId: "issues-app-65527", storageBucket: "issues-app-65527.firebasestorage.app", messagingSenderId: "103649380899", appId: "1:103649380899:web:f8f9131b9a4123d2e93f96" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        let currentRoom = localStorage.getItem('lastRoom') || "";
+
+        let currentRoom = "";
+        let currentEffortCat = null;
+        const zones = [{ id: "gt", name: "Golden Ticket", minImp: 66, maxImp: 101, minEase: 66, maxEase: 101 },{ id: "sw", name: "Strategic Win", minImp: 66, maxImp: 101, minEase: 33, maxEase: 66 },{ id: "mp", name: "Major Project", minImp: 66, maxImp: 101, minEase: 0, maxEase: 33 },{ id: "lf", name: "Quick Win", minImp: 33, maxImp: 66, minEase: 66, maxEase: 101 },{ id: "tt", name: "Tactical", minImp: 33, maxImp: 66, minEase: 33, maxEase: 66 },{ id: "hs", name: "Hard Slog", minImp: 33, maxImp: 66, minEase: 0, maxEase: 33 },{ id: "wn", name: "Why Not?", minImp: 0, maxImp: 33, minEase: 66, maxEase: 101 },{ id: "fl", name: "Filler", minImp: 0, maxImp: 33, minEase: 33, maxEase: 66 },{ id: "pit", name: "Money Pit", minImp: 0, maxImp: 33, minEase: 0, maxEase: 33 }];
 
         function generateNewRoom() {
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             let result = "";
             for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
             currentRoom = result;
-            localStorage.setItem('lastRoom', result);
-            updateUI(result);
+            document.getElementById('roomDisplay').innerText = result;
+            
+            // DINAMIC LINK DETECTION
+            const baseUrl = window.location.href.split('moderator.html')[0];
+            const participantUrl = baseUrl + "index.html?room=" + result;
+            
+            const qrcodeContainer = document.getElementById("qrcode");
+            qrcodeContainer.innerHTML = "";
+            new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
             db.ref(`rooms/${result}/config/roomCode`).set(result);
         }
 
-        function updateUI(code) {
-            document.getElementById('roomDisplay').innerText = code;
-            const baseUrl = window.location.href.split('moderator.html')[0];
-            const pUrl = baseUrl + "index.html?room=" + code;
-            document.getElementById("qrcode").innerHTML = "";
-            new QRCode(document.getElementById("qrcode"), { text: pUrl, width: 140, height: 140 });
+        function addRow(containerId, name = "", color = null) {
+            const container = document.getElementById(containerId);
+            const row = document.createElement('div'); row.className = "row-item flex gap-2 p-2 bg-gray-800 rounded mb-2";
+            row.innerHTML = `<div class="drag-handle cursor-grab">⋮⋮</div>${color ? `<input type="color" value="${color}" class="bg-transparent">` : ''}<input type="text" value="${name}" class="bg-transparent flex-1 outline-none text-xs font-bold"><div onclick="this.parentElement.remove()" class="cursor-pointer text-red-500">✕</div>`;
+            container.appendChild(row);
         }
 
+        // --- CONEXIÓN CORREGIDA ---
         function pushConfig() {
-            if(!currentRoom) return alert("Please generate a room code first.");
-            const title = document.getElementById('workshopTitle').value || "SiteSolve Workshop";
+            if(!currentRoom) return alert("Generate a Room Code first.");
+            const title = document.getElementById('workshopTitle').value;
+            const steps = Array.from(document.querySelectorAll('#stepList input[type="text"]')).map(i => i.value);
+            const cats = Array.from(document.querySelectorAll('#categoryList .row-item')).map(r => ({ name: r.querySelector('input[type="text"]').value, color: r.querySelector('input[type="color"]').value }));
             
-            // Re-introducimos los pasos y categorías que tenías antes
-            const configData = {
-                title: title,
-                steps: ["1. Empathy / UX", "2. Technical / Backend", "3. Business / Strategy", "4. Ideation"],
-                cats: [
-                    {name: "Painless", color: "#3b82f6"},
-                    {name: "Critical", color: "#ef4444"},
-                    {name: "Opportunity", color: "#10b981"},
-                    {name: "Observation", color: "#f59e0b"}
-                ]
-            };
+            // Sincroniza en la ruta de la sala específica
+            db.ref(`rooms/${currentRoom}/config`).update({ title, steps, cats }).then(() => alert("Synced!"));
+        }
 
-            db.ref(`rooms/${currentRoom}/config`).update(configData).then(() => {
-                alert("SYCHRONIZED: Participants can now see the workshop structure.");
+        function renderWall() {
+            const container = document.getElementById('columnContainer');
+            db.ref(`rooms/${currentRoom}/config`).on('value', cSnap => {
+                const c = cSnap.val() || {};
+                // Escucha las notas en la sub-ruta de la sala
+                db.ref(`rooms/${currentRoom}/notes`).on('value', nSnap => {
+                    const notes = nSnap.val() || {};
+                    container.innerHTML = (c.steps || []).map(step => {
+                        const stepNotes = Object.entries(notes).filter(([id, n]) => n.step === step);
+                        return `<div class="step-column min-w-[300px] flex flex-col bg-gray-900/40 rounded-xl border border-white/5 h-full"><div class="p-3 font-black text-[10px] uppercase text-blue-400 border-b border-gray-800">${step}</div><div class="p-3 overflow-y-auto">${stepNotes.map(([id, n]) => `<div class="wall-item" style="border-left-color:${n.color}" data-id="${id}"><div class="step-badge">${n.step}</div>${n.text}</div>`).join('')}</div></div>`;
+                    }).join('');
+                });
+            });
+        }
+        // --- FIN CONEXIÓN ---
+
+        function approveSynthesis() {
+            db.ref(`rooms/${currentRoom}/notes`).once('value', snap => {
+                const nodes = {}; const notes = snap.val() || {};
+                Object.entries(notes).forEach(([id, n], i) => { nodes['node_'+id] = { text: n.text, color: n.color, category: n.category, step: n.step, rank_y: 100, impact: 80, effort: 50, effort_x: 150 }; });
+                db.ref(`rooms/${currentRoom}/matrix_nodes`).set(nodes).then(() => showTab('board'));
+            });
+        }
+
+        function renderRankingBoard() {
+            const container = document.getElementById('rankingContainer');
+            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+                const c = cSnap.val() || {};
+                db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
+                    const nodes = nSnap.val() || {};
+                    container.innerHTML = (c.cats || []).map(cat => `<div class="rank-column"><div class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</div><div class="rank-slot h-full relative" data-cat="${cat.name}"></div></div>`).join('');
+                    Object.entries(nodes).forEach(([id, d]) => {
+                        const slot = container.querySelector(`[data-cat="${d.category}"]`);
+                        if(!slot) return;
+                        const el = document.createElement('div'); el.className = "rank-item";
+                        el.style.borderLeftColor = d.color; el.style.top = (d.rank_y || 0) + 'px'; el.setAttribute('data-y', d.rank_y || 0);
+                        el.innerHTML = `<div class="step-badge">${d.step}</div>${d.text} <span class="roi-tag ml-auto">${d.impact}%</span>`;
+                        slot.appendChild(el);
+                        interact(el).draggable({ listeners: { move(e) {
+                            let t = e.target; let parentH = t.parentElement.offsetHeight;
+                            let y = (parseFloat(t.getAttribute('data-y'))||0) + e.dy;
+                            y = Math.max(0, Math.min(y, parentH - 50)); 
+                            t.style.top = y+'px'; t.setAttribute('data-y', y);
+                        }, end(e) {
+                            const y = parseFloat(e.target.getAttribute('data-y')); const parentH = e.target.parentElement.offsetHeight;
+                            const impactVal = Math.round(100 - (y / (parentH - 50)) * 100);
+                            db.ref(`rooms/${currentRoom}/matrix_nodes/${id}`).update({ rank_y: y, impact: Math.max(0, Math.min(100, impactVal)) });
+                        }}});
+                    });
+                });
+            });
+        }
+
+        function renderEffort() {
+            const nav = document.getElementById('effortCatNav'); const area = document.getElementById('effortWorkingArea');
+            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+                const c = cSnap.val() || {};
+                nav.innerHTML = (c.cats || []).map(cat => `<button onclick="filterEffortCat('${cat.name}')" class="px-3 py-1 rounded text-[9px] font-black uppercase border transition-all" style="border-color:${cat.color}; color:${currentEffortCat===cat.name?'black':cat.color}; background:${currentEffortCat===cat.name?cat.color:'transparent'}">${cat.name}</button>`).join('');
+                db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
+                    area.innerHTML = ''; const nodes = nSnap.val() || {};
+                    Object.entries(nodes).filter(([id, d]) => !currentEffortCat || d.category === currentEffortCat).forEach(([id, d], i) => {
+                        const el = document.createElement('div'); el.className = "effort-node"; el.style.borderLeftColor = d.color;
+                        el.style.left = (d.effort_x || 10) + 'px'; el.style.top = (20 + (i * 45)) + 'px'; el.setAttribute('data-x', d.effort_x || 10);
+                        el.innerHTML = `<div class="truncate">${d.text}</div><div class="text-[7px] text-blue-600 mt-1">EASE: ${d.effort}%</div>`;
+                        area.appendChild(el);
+                        interact(el).draggable({ listeners: { move(e) {
+                            let t = e.target, x = (parseFloat(t.getAttribute('data-x')) || 0) + e.dx;
+                            x = Math.max(10, Math.min(x, area.offsetWidth - 170)); t.style.left = x + 'px'; t.setAttribute('data-x', x);
+                        }, end(e) {
+                            const x = parseFloat(e.target.getAttribute('data-x')); const percent = Math.round((x / (area.offsetWidth - 170)) * 100);
+                            db.ref(`rooms/${currentRoom}/matrix_nodes/${id}`).update({ effort_x: x, effort: percent });
+                        }}});
+                    });
+                });
+            });
+        }
+
+        function filterEffortCat(name) { currentEffortCat = (currentEffortCat === name) ? null : name; renderEffort(); }
+
+        function renderRoadmap() {
+            const container = document.getElementById('roadmapContainer'); const masterList = document.getElementById('masterRankList'); const matrixPoints = document.getElementById('matrixPoints');
+            container.innerHTML = ''; masterList.innerHTML = ''; matrixPoints.innerHTML = '';
+            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+                const c = cSnap.val() || {};
+                db.ref(`rooms/${currentRoom}/matrix_nodes`).once('value', nSnap => {
+                    const nodes = Object.entries(nSnap.val() || {}).map(([id, n]) => ({ ...n, id, roi: Math.round((n.impact * n.effort) / 100) }));
+                    const matrixBox = document.getElementById('matrixContainer'); const w = matrixBox.offsetWidth; const h = matrixBox.offsetHeight;
+                    nodes.forEach(n => {
+                        const dot = document.createElement('div'); dot.className = "matrix-postit"; dot.style.borderLeftColor = n.color;
+                        const x = (n.effort / 100) * w; const y = h - ((n.impact / 100) * h);
+                        dot.style.left = Math.max(35, Math.min(x, w - 35)) + 'px'; dot.style.top = Math.max(35, Math.min(y, h - 35)) + 'px';
+                        dot.innerHTML = n.text; matrixPoints.appendChild(dot);
+                    });
+                    (c.cats || []).forEach(cat => {
+                        const col = document.createElement('div'); col.className = "roadmap-column"; col.innerHTML = `<h3 class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</h3>`;
+                        zones.forEach(z => {
+                            const items = nodes.filter(n => n.category === cat.name && n.impact >= z.minImp && n.impact < z.maxImp && n.effort >= z.minEase && n.effort < z.maxEase);
+                            if(items.length > 0) {
+                                let html = `<div class="mb-4"><div class="text-[7px] font-black opacity-40 uppercase mb-1">${z.name}</div>`;
+                                items.forEach(n => html += `<div class="final-card" style="border-left-color:${n.color}"><span>${n.text}</span><span class="roi-tag">${n.roi}</span></div>`);
+                                col.innerHTML += html + `</div>`;
+                            }
+                        });
+                        container.appendChild(col);
+                    });
+                    nodes.sort((a,b) => b.roi - a.roi).forEach((n, i) => { masterList.innerHTML += `<div class="flex items-center gap-2 mb-2 p-2 bg-white/5 rounded text-[9px] uppercase font-bold" style="border-left: 3px solid ${n.color}">#${i+1} ${n.text} <span class="ml-auto roi-tag">${n.roi}</span></div>`; });
+                });
             });
         }
 
         function showTab(tId) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-tab', 'text-gray-500'));
+            document.querySelectorAll('.tab-content, nav button').forEach(el => el.classList.remove('active', 'active-tab'));
             document.getElementById(tId + '-tab').classList.add('active');
             document.getElementById('btn-' + tId).classList.add('active-tab');
-            if(tId === 'wall') renderWall();
-        }
-
-        function renderWall() {
             if(!currentRoom) return;
-            const container = document.getElementById('columnContainer');
-            db.ref(`rooms/${currentRoom}/notes`).on('value', snap => {
-                const notes = snap.val() || {};
-                const entries = Object.entries(notes);
-                document.getElementById('stats').innerText = `${entries.length} Notes Received`;
-                
-                container.innerHTML = entries.reverse().map(([id, n]) => `
-                    <div class="wall-card shadow-lg animate-in slide-in-from-bottom-2 duration-300" style="border-left-color:${n.color}">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[8px] font-black uppercase text-gray-400">${n.category}</span>
-                            <span class="text-[8px] font-black uppercase text-gray-400">${n.step}</span>
-                        </div>
-                        <p class="text-sm leading-tight">${n.text}</p>
-                    </div>
-                `).join('');
-            });
+            if(tId === 'synthesis') renderWall();
+            if(tId === 'board') renderRankingBoard();
+            if(tId === 'effort') renderEffort();
+            if(tId === 'final') renderRoadmap();
         }
 
-        function exportToExcel() {
-            if(!currentRoom) return;
-            db.ref(`rooms/${currentRoom}/notes`).once('value', snapshot => {
-                const data = snapshot.val() || {};
-                const rows = Object.entries(data).map(([id, n]) => ({
-                    Workshop: document.getElementById('workshopTitle').value,
-                    Room: currentRoom,
-                    Observation: n.text,
-                    Category: n.category,
-                    Step: n.step,
-                    Date: new Date(n.timestamp).toLocaleString()
-                }));
-                const ws = XLSX.utils.json_to_sheet(rows);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Observations");
-                XLSX.writeFile(wb, `SiteSolve_Report_${currentRoom}.xlsx`);
-            });
-        }
-
-        function exportToPDF() {
-            const element = document.getElementById('wall-tab');
-            const opt = { margin: 1, filename: `SiteSolve_Wall_${currentRoom}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } };
-            html2pdf().set(opt).from(element).save();
-        }
-
-        // Recuperar sesión anterior
-        if(currentRoom) updateUI(currentRoom); else generateNewRoom();
+        function exportToPDF() { const element = document.getElementById('pdf-area'); html2pdf().from(element).save(`SiteSolve_Report_${currentRoom}.pdf`); }
+        function resetAllData() { if(confirm("Clear All?")) db.ref(`rooms/${currentRoom}`).remove().then(()=>location.reload()); }
+        window.addEventListener('load', () => { generateNewRoom(); });
     </script>
 </body>
 </html>
