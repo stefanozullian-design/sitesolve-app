@@ -21,8 +21,8 @@
         .wall-item { background: white; color: black; padding: 12px; border-radius: 6px; font-size: 11px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-left-width: 8px; margin-bottom: 12px; touch-action: none; cursor: grab; z-index: 10; position: relative; }
         .step-badge { position: absolute; top: 8px; right: 8px; font-size: 7px; font-weight: 900; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; border: 1px solid #e2e8f0; pointer-events: none; z-index: 20; }
         .rank-column { min-width: 300px; background: rgba(15, 23, 42, 0.6); border-radius: 12px; height: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; }
-        .rank-item { background: white; color: black; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 11px; text-transform: uppercase; cursor: grab; position: absolute; width: calc(100% - 24px); border-left-width: 8px; touch-action: none; z-index: 10; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .effort-node { position: absolute; width: 160px; background: white; color: black; padding: 8px; border-radius: 4px; font-size: 9px; font-weight: 800; border-left: 4px solid; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none; z-index: 10; transition: left 0.5s ease-out; }
+        .rank-item { background: white; color: black; padding: 10px; border-radius: 6px; font-weight: 900; font-size: 11px; text-transform: uppercase; cursor: grab; position: absolute; width: calc(100% - 24px); border-left-width: 8px; touch-action: none; z-index: 10; transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .effort-node { position: absolute; width: 160px; background: white; color: black; padding: 8px; border-radius: 4px; font-size: 9px; font-weight: 800; border-left: 4px solid; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none; z-index: 10; }
         .matrix-container { width: 100%; aspect-ratio: 1/1; position: relative; background: #0f172a; border: 2px solid #334155; }
         .matrix-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
         .matrix-cell { border: 1px solid rgba(255,255,255,0.1); position: relative; }
@@ -89,11 +89,7 @@
     </div>
 
     <div id="board-tab" class="tab-content bg-[#020617]">
-        <div class="px-6 pt-4 flex justify-between text-[10px] font-black text-gray-600 uppercase">
-            <span>Critical (100%)</span>
-            <button onclick="showTab('effort')" class="bg-orange-600 px-4 py-1 rounded text-white animate-pulse">MOVE TO EFFORT →</button>
-            <span>Minor (0%)</span>
-        </div>
+        <div class="px-6 pt-4 flex justify-between text-[10px] font-black text-gray-600 uppercase"><span>Critical (100%)</span><span>Minor (0%)</span></div>
         <div id="rankingContainer" class="flex-1 flex overflow-x-auto p-6 gap-6 scrollbar-hide"></div>
     </div>
 
@@ -178,6 +174,7 @@
 
         function initWallInteractions() {
             interact('.wall-item').draggable({
+                inertia: true,
                 listeners: {
                     move(event) {
                         const target = event.target;
@@ -189,7 +186,10 @@
                     }
                 }
             }).dropzone({
-                accept: '.wall-item', overlap: 0.5,
+                accept: '.wall-item',
+                overlap: 0.5,
+                ondragenter(event) { event.target.classList.add('drop-target'); },
+                ondragleave(event) { event.target.classList.remove('drop-target'); },
                 ondrop(event) {
                     const draggedId = event.relatedTarget.getAttribute('data-id');
                     const targetId = event.target.getAttribute('data-id');
@@ -197,14 +197,17 @@
                         const sourceRef = db.ref(`rooms/${currentRoom}/notes/${draggedId}`);
                         const targetRef = db.ref(`rooms/${currentRoom}/notes/${targetId}`);
                         Promise.all([sourceRef.get(), targetRef.get()]).then(results => {
-                            const sourceData = results[0].val(); const targetData = results[1].val();
+                            const sourceData = results[0].val();
+                            const targetData = results[1].val();
                             if (sourceData && targetData) {
                                 const format = (txt) => txt.split('\n').map(line => line.trim().startsWith('•') ? line.trim() : `• ${line.trim()}`).join('\n');
                                 const combinedText = format(targetData.text) + '\n' + format(sourceData.text);
-                                targetRef.update({ text: combinedText }); sourceRef.remove();
+                                targetRef.update({ text: combinedText });
+                                sourceRef.remove();
                             }
                         });
                     }
+                    event.target.classList.remove('drop-target');
                 }
             });
         }
@@ -234,16 +237,15 @@
                 const nodes = {}; const notes = snap.val() || {};
                 Object.entries(notes).forEach(([id, n], i) => { 
                     const finalDisplay = n.mergeTitle ? n.mergeTitle.toUpperCase() : n.text;
-                    nodes[id] = { text: finalDisplay, color: n.color, category: n.category, step: n.step, impact: 50, effort: 50 }; 
+                    nodes[id] = { text: finalDisplay, color: n.color, category: n.category, step: n.step, impact: 50, effort: 50, effort_x: 150 }; 
                 });
                 db.ref(`rooms/${currentRoom}/matrix_nodes`).set(nodes).then(() => showTab('board'));
             });
         }
 
-        function setParticipantView(categoryName, type) {
+        function setParticipantView(categoryName) {
             db.ref(`rooms/${currentRoom}/remote_control`).set({
                 targetCategory: categoryName,
-                mode: type,
                 timestamp: Date.now()
             });
         }
@@ -254,24 +256,37 @@
                 const config = cSnap.val() || {};
                 container.innerHTML = (config.cats || []).map(cat => `
                     <div class="rank-column flex flex-col">
-                        <button onclick="setParticipantView('${cat.name}', 'importance')" class="mb-4 bg-blue-600 hover:bg-blue-500 py-2 rounded text-[9px] font-black uppercase transition-all shadow-lg">Prioritize ${cat.name}</button>
+                        <button onclick="setParticipantView('${cat.name}')" class="mb-4 bg-blue-600 hover:bg-blue-500 py-2 rounded text-[9px] font-black uppercase transition-all shadow-lg">
+                            Prioritize ${cat.name}
+                        </button>
                         <div class="rank-slot flex-1 relative" data-cat="${cat.name}"></div>
                     </div>`).join('');
 
                 db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
                     const nodes = nSnap.val() || {};
-                    db.ref(`rooms/${currentRoom}/participant_votes/importance`).on('value', vSnap => {
+                    db.ref(`rooms/${currentRoom}/participant_votes`).on('value', vSnap => {
                         const allVotes = vSnap.val() || {};
+                        
                         document.querySelectorAll('.rank-slot').forEach(slot => {
-                            const cat = slot.getAttribute('data-cat'); slot.innerHTML = '';
+                            const cat = slot.getAttribute('data-cat');
+                            slot.innerHTML = '';
+                            
                             Object.entries(nodes).filter(([id, d]) => d.category === cat).forEach(([id, d]) => {
                                 let finalImpact = d.impact || 50;
                                 const nodeVotes = Object.values(allVotes).map(v => v[id]).filter(v => v !== undefined);
-                                if (nodeVotes.length > 0) finalImpact = Math.round(nodeVotes.reduce((a, b) => a + b, 0) / nodeVotes.length);
-                                const el = document.createElement('div'); el.className = "rank-item"; el.style.borderLeftColor = d.color;
-                                const yPos = (100 - finalImpact) * ((slot.offsetHeight - 50) / 100);
-                                el.style.top = yPos + 'px'; el.innerHTML = `<div class="step-badge">${d.step}</div>${d.text} <span class="roi-tag ml-auto">${finalImpact}%</span>`;
+                                if (nodeVotes.length > 0) {
+                                    finalImpact = Math.round(nodeVotes.reduce((a, b) => a + b, 0) / nodeVotes.length);
+                                }
+
+                                const el = document.createElement('div');
+                                el.className = "rank-item";
+                                el.style.borderLeftColor = d.color;
+                                const parentH = slot.offsetHeight || 500;
+                                const yPos = (100 - finalImpact) * ((parentH - 50) / 100);
+                                el.style.top = yPos + 'px';
+                                el.innerHTML = `<div class="step-badge">${d.step}</div>${d.text} <span class="roi-tag ml-auto">${finalImpact}%</span>`;
                                 slot.appendChild(el);
+                                
                                 db.ref(`rooms/${currentRoom}/matrix_nodes/${id}`).update({ impact: finalImpact });
                             });
                         });
@@ -284,25 +299,55 @@
             const nav = document.getElementById('effortCatNav'); const area = document.getElementById('effortWorkingArea');
             db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
                 const c = cSnap.val() || {};
-                nav.innerHTML = (c.cats || []).map(cat => `<button onclick="setParticipantView('${cat.name}', 'effort'); currentEffortCat='${cat.name}'; renderEffort();" class="px-3 py-1 rounded text-[9px] font-black uppercase border transition-all" style="border-color:${cat.color}; color:${currentEffortCat===cat.name?'black':cat.color}; background:${currentEffortCat===cat.name?cat.color:'transparent'}">${cat.name}</button>`).join('');
-                
+                nav.innerHTML = (c.cats || []).map(cat => `<button onclick="filterEffortCat('${cat.name}')" class="px-3 py-1 rounded text-[9px] font-black uppercase border transition-all" style="border-color:${cat.color}; color:${currentEffortCat===cat.name?'black':cat.color}; background:${currentEffortCat===cat.name?cat.color:'transparent'}">${cat.name}</button>`).join('');
                 db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
                     area.innerHTML = ''; const nodes = nSnap.val() || {};
-                    db.ref(`rooms/${currentRoom}/participant_votes/effort`).on('value', vSnap => {
-                        const allVotes = vSnap.val() || {};
-                        Object.entries(nodes).filter(([id, d]) => !currentEffortCat || d.category === currentEffortCat).forEach(([id, d], i) => {
-                            let finalEffort = d.effort || 50;
-                            const nodeVotes = Object.values(allVotes).map(v => v[id]).filter(v => v !== undefined);
-                            if (nodeVotes.length > 0) finalEffort = Math.round(nodeVotes.reduce((a, b) => a + b, 0) / nodeVotes.length);
-
-                            const el = document.createElement('div'); el.className = "effort-node"; el.style.borderLeftColor = d.color;
-                            const xPos = (finalEffort / 100) * (area.offsetWidth - 170);
-                            el.style.left = xPos + 'px'; el.style.top = (20 + (i * 45)) + 'px';
-                            el.innerHTML = `<div class="truncate">${d.text}</div><div class="text-[7px] text-blue-600 mt-1">EASE: ${finalEffort}%</div>`;
-                            area.appendChild(el);
-                            db.ref(`rooms/${currentRoom}/matrix_nodes/${id}`).update({ effort: finalEffort });
-                        });
+                    Object.entries(nodes).filter(([id, d]) => !currentEffortCat || d.category === currentEffortCat).forEach(([id, d], i) => {
+                        const el = document.createElement('div'); el.className = "effort-node"; el.style.borderLeftColor = d.color;
+                        el.style.left = (d.effort_x || 10) + 'px'; el.style.top = (20 + (i * 45)) + 'px'; el.setAttribute('data-x', d.effort_x || 10);
+                        el.innerHTML = `<div class="truncate">${d.text}</div><div class="text-[7px] text-blue-600 mt-1">EASE: ${d.effort || 50}%</div>`;
+                        area.appendChild(el);
+                        interact(el).draggable({ listeners: { move(e) {
+                            let t = e.target, x = (parseFloat(t.getAttribute('data-x')) || 0) + e.dx;
+                            x = Math.max(10, Math.min(x, area.offsetWidth - 170)); t.style.left = x + 'px'; t.setAttribute('data-x', x);
+                        }, end(e) {
+                            const x = parseFloat(e.target.getAttribute('data-x')); const percent = Math.round((x / (area.offsetWidth - 170)) * 100);
+                            db.ref(`rooms/${currentRoom}/matrix_nodes/${e.target.getAttribute('data-id') || id}`).update({ effort_x: x, effort: percent });
+                        }}});
                     });
+                });
+            });
+        }
+
+        function filterEffortCat(name) { currentEffortCat = (currentEffortCat === name) ? null : name; renderEffort(); }
+
+        function renderRoadmap() {
+            const container = document.getElementById('roadmapContainer'); const masterList = document.getElementById('masterRankList'); const matrixPoints = document.getElementById('matrixPoints');
+            container.innerHTML = ''; masterList.innerHTML = ''; matrixPoints.innerHTML = '';
+            db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
+                const c = cSnap.val() || {};
+                db.ref(`rooms/${currentRoom}/matrix_nodes`).once('value', nSnap => {
+                    const nodes = Object.entries(nSnap.val() || {}).map(([id, n]) => ({ ...n, id, roi: Math.round(((n.impact || 0) * (n.effort || 0)) / 100) }));
+                    const matrixBox = document.getElementById('matrixContainer'); const w = matrixBox.offsetWidth; const h = matrixBox.offsetHeight;
+                    nodes.forEach(n => {
+                        const dot = document.createElement('div'); dot.className = "matrix-postit"; dot.style.borderLeftColor = n.color;
+                        const x = ((n.effort || 0) / 100) * w; const y = h - (((n.impact || 0) / 100) * h);
+                        dot.style.left = Math.max(35, Math.min(x, w - 35)) + 'px'; dot.style.top = Math.max(35, Math.min(y, h - 35)) + 'px';
+                        dot.innerHTML = n.text; matrixPoints.appendChild(dot);
+                    });
+                    (c.cats || []).forEach(cat => {
+                        const col = document.createElement('div'); col.className = "roadmap-column"; col.innerHTML = `<h3 class="text-[10px] font-black uppercase mb-4" style="color:${cat.color}">${cat.name}</h3>`;
+                        zones.forEach(z => {
+                            const items = nodes.filter(n => n.category === cat.name && n.impact >= z.minImp && n.impact < z.maxImp && n.effort >= z.minEase && n.effort < z.maxEase);
+                            if(items.length > 0) {
+                                let html = `<div class="mb-4"><div class="text-[7px] font-black opacity-40 uppercase mb-1">${z.name}</div>`;
+                                items.forEach(n => html += `<div class="final-card" style="border-left-color:${n.color}"><span>${n.text}</span><span class="roi-tag">${n.roi}</span></div>`);
+                                col.innerHTML += html + `</div>`;
+                            }
+                        });
+                        container.appendChild(col);
+                    });
+                    nodes.sort((a,b) => b.roi - a.roi).forEach((n, i) => { masterList.innerHTML += `<div class="flex items-center gap-2 mb-2 p-2 bg-white/5 rounded text-[9px] uppercase font-bold" style="border-left: 3px solid ${n.color}">#${i+1} ${n.text} <span class="ml-auto roi-tag">${n.roi}</span></div>`; });
                 });
             });
         }
