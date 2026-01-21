@@ -156,7 +156,7 @@
             for (let i = 0; i < 6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
             document.getElementById('roomDisplay').innerText = result;
             
-            const participantUrl = window.location.href.replace('index.html', 'participant.html') + `?room=${result}`;
+            const participantUrl = window.location.href.replace('moderator.html', 'index.html') + `?room=${result}`;
             
             const qrcodeContainer = document.getElementById("qrcode");
             qrcodeContainer.innerHTML = "";
@@ -313,3 +313,4 @@
     </script>
 </body>
 </html>
+
