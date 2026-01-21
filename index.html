@@ -9,62 +9,78 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
     <style>
-        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; overflow-x: hidden; }
+        body { background-color: #030712; color: white; font-family: ui-sans-serif, system-ui; overflow-x: hidden; touch-action: manipulation; }
         .step-btn.active { background-color: #2563eb; border-color: #60a5fa; box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); }
         .submit-overlay { display: none; position: fixed; inset: 0; background: rgba(3, 7, 18, 0.9); z-index: 100; align-items: center; justify-content: center; }
-        .my-issue-card { background: white; color: black; border-radius: 12px; padding: 12px; border-left: 6px solid; position: relative; margin-bottom: 12px; white-space: pre-line; }
-        #login-screen { position: fixed; inset: 0; background: #030712; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        
-        /* Estilos Zona de Votación */
-        #vote-canvas { height: 60vh; background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.1); border-radius: 20px; position: relative; overflow: hidden; margin: 10px 0; }
-        .rank-bubble { position: absolute; width: 85%; left: 7.5%; background: white; color: black; padding: 12px; border-radius: 10px; font-weight: 800; font-size: 11px; border-left: 8px solid; touch-action: none; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        .y-axis-label { position: absolute; right: 10px; font-size: 8px; font-weight: 900; color: #4b5563; text-transform: uppercase; }
+        .rank-node { 
+            position: absolute; width: 85%; left: 7.5%; background: white; color: black; 
+            padding: 12px; border-radius: 8px; font-weight: 800; font-size: 11px; 
+            text-transform: uppercase; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4);
+            border-left: 8px solid; touch-action: none; z-index: 10;
+        }
+        /* Estilo para la leyenda del número/porcentaje */
+        .rank-badge {
+            position: absolute; top: 4px; right: 4px; background: #f1f5f9; 
+            color: #1e40af; font-size: 9px; padding: 2px 5px; border-radius: 4px;
+            font-family: monospace; border: 1px solid #e2e8f0;
+        }
+        .step-label { font-size: 7px; opacity: 0.5; margin-bottom: 2px; display: block; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col p-4">
+<body>
 
-    <div id="login-screen" style="display: none;">
-        <h1 class="text-2xl font-black text-blue-500 italic mb-2">SITESOLVE PRO</h1>
-        <input type="text" id="manualRoomInput" maxlength="6" placeholder="ROOM CODE" class="bg-gray-900 border-2 border-gray-800 rounded-2xl p-4 text-3xl font-black text-center text-blue-400 outline-none w-full max-w-[200px] uppercase mb-4">
-        <button onclick="enterRoomManually()" class="bg-blue-600 w-full max-w-[200px] py-4 rounded-2xl font-black uppercase">Join</button>
-    </div>
-
-    <div id="main-app">
-        <header class="flex justify-between items-center mb-4">
+    <div id="screen-input" class="p-4 flex flex-col h-screen">
+        <div class="flex items-center gap-3 mb-6">
+            <img src="ICON.png" class="h-10 w-auto">
             <div>
-                <h1 class="text-lg font-black text-blue-500 italic uppercase">SiteSolve Pro</h1>
-                <p id="roomIndicator" class="text-[8px] text-gray-500 font-bold uppercase tracking-widest">---</p>
+                <h1 class="text-xs font-black italic text-blue-500 uppercase leading-none">SiteSolve Pro</h1>
+                <p id="room-code-display" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Room: ---</p>
             </div>
-            <div id="status-dot" class="w-2 h-2 bg-red-500 rounded-full"></div>
-        </header>
-
-        <div id="screen-input" class="space-y-4">
-            <div id="steps-container" class="grid grid-cols-2 gap-2"></div>
-            <textarea id="note-input" class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-white text-sm h-24 outline-none" placeholder="Describe issue..."></textarea>
-            <div id="cats-container" class="space-y-2"></div>
-            <div id="my-contributions-list" class="mt-4"></div>
         </div>
 
-        <div id="screen-ranking" class="hidden flex flex-col h-[85vh]">
-            <div class="text-center mb-2">
-                <h2 id="ranking-title" class="text-blue-400 font-black uppercase italic italic text-sm">Prioritize Category</h2>
-                <div class="flex justify-between text-[8px] font-black text-gray-500 mt-1 uppercase">
-                    <span>↑ CRITICAL (100)</span>
-                    <span>MINOR (0) ↓</span>
-                </div>
+        <div id="setup-waiting" class="flex-1 flex flex-col items-center justify-center text-center space-y-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Waiting for Moderator to start...</p>
+        </div>
+
+        <div id="input-area" class="hidden flex-1 flex flex-col">
+            <div class="mb-4">
+                <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 block">1. Select Process Step</label>
+                <div id="step-buttons" class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide"></div>
             </div>
 
-            <div id="vote-canvas">
-                <span class="y-axis-label top-4">100</span>
-                <span class="y-axis-label bottom-4">0</span>
-                </div>
+            <div class="flex-1 flex flex-col mb-4">
+                <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2 block">2. Capture Observation</label>
+                <textarea id="note-input" class="flex-1 w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm font-bold outline-none focus:border-blue-500 transition-colors" placeholder="Type here..."></textarea>
+            </div>
 
-            <button onclick="exitRanking()" class="w-full py-3 mt-4 text-[10px] font-black uppercase text-gray-500 bg-gray-900 rounded-xl">Back to Observations</button>
+            <div id="category-actions" class="grid grid-cols-2 gap-3 pb-4"></div>
         </div>
     </div>
 
-    <div id="successOverlay" class="submit-overlay flex-col">
-        <p class="font-black text-green-500 uppercase">Sent!</p>
+    <div id="screen-ranking" class="hidden fixed inset-0 bg-[#020617] flex flex-col">
+        <div class="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center">
+            <div>
+                <h2 id="ranking-title" class="text-xs font-black text-blue-400 uppercase italic">Prioritizing</h2>
+                <p id="ranking-subtitle" class="text-[8px] text-gray-500 font-bold uppercase">Drag items to rank them</p>
+            </div>
+            <div class="text-[10px] font-black bg-blue-900/30 text-blue-400 px-3 py-1 rounded">LIVE SYNC</div>
+        </div>
+        
+        <div class="flex justify-between px-8 pt-4 text-[8px] font-black text-gray-600 uppercase italic">
+            <span id="label-high">Critical / High</span>
+            <span id="label-low">Minor / Low</span>
+        </div>
+
+        <div id="ranking-container" class="flex-1 relative m-4 bg-gray-900/50 rounded-2xl border border-white/5 overflow-hidden">
+            </div>
+    </div>
+
+    <div id="successOverlay" class="submit-overlay">
+        <div class="text-center">
+            <div class="text-4xl mb-2">✅</div>
+            <div class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500">Sent to Wall</div>
+        </div>
     </div>
 
     <script>
@@ -73,95 +89,34 @@
         const db = firebase.database();
 
         let room = new URLSearchParams(window.location.search).get('room');
-        let selectedStep = "";
-        let participantId = localStorage.getItem('participantId') || 'p_' + Math.random().toString(36).substr(2, 9);
+        let participantId = localStorage.getItem('participantId') || 'P' + Math.floor(Math.random() * 10000);
         localStorage.setItem('participantId', participantId);
+        let selectedStep = "";
 
         function initApp() {
-            if (!room) { document.getElementById('login-screen').style.display = 'flex'; document.getElementById('main-app').style.display = 'none'; } 
-            else { document.getElementById('login-screen').style.display = 'none'; startListening(); }
-        }
+            if (!room) return alert("No Room Code!");
+            document.getElementById('room-code-display').innerText = "Room: " + room;
 
-        function enterRoomManually() {
-            const code = document.getElementById('manualRoomInput').value.toUpperCase().trim();
-            if (code.length === 6) window.location.search = "?room=" + code;
-        }
-
-        function startListening() {
             db.ref(`rooms/${room}/config`).on('value', snap => {
-                const config = snap.val(); if (!config) return;
-                document.getElementById('status-dot').className = "w-2 h-2 bg-green-500 rounded-full";
-                document.getElementById('steps-container').innerHTML = (config.steps || []).map(step => `<button onclick="selectStep(this, '${step}')" class="step-btn bg-gray-900 border border-gray-800 p-2 rounded text-[9px] font-bold uppercase transition-all">${step}</button>`).join('');
-                document.getElementById('cats-container').innerHTML = (config.cats || []).map(cat => `<button onclick="submitInstant('${cat.name}', '${cat.color}')" class="w-full p-3 rounded-xl text-[10px] font-black uppercase text-left flex justify-between items-center" style="background:${cat.color}20; color:${cat.color}; border:1px solid ${cat.color};">${cat.name} <span>→</span></button>`).join('');
-            });
-
-            db.ref(`rooms/${room}/notes`).on('value', snap => {
-                const myNotes = Object.entries(snap.val() || {}).filter(([id, n]) => n.sender === participantId).reverse();
-                document.getElementById('my-contributions-list').innerHTML = myNotes.map(([id, n]) => `<div class="my-issue-card" style="border-left-color:${n.color}"><div class="text-[7px] font-black uppercase text-gray-400">${n.step}</div><div class="text-[11px] font-bold">${n.text}</div></div>`).join('');
-            });
-
-            // ESCUCHAR CONTROL REMOTO DEL MODERADOR
-            db.ref(`rooms/${room}/remote_control`).on('value', snap => {
-                const control = snap.val();
-                if (control && control.targetCategory) showRankingView(control.targetCategory);
-            });
-        }
-
-        function showRankingView(catName) {
-            document.getElementById('screen-input').classList.add('hidden');
-            document.getElementById('screen-ranking').classList.remove('hidden');
-            document.getElementById('ranking-title').innerText = "VOTE IMPORTANCE: " + catName;
-            
-            const canvas = document.getElementById('vote-canvas');
-            canvas.innerHTML = '<span class="y-axis-label top-4">100</span><span class="y-axis-label bottom-4">0</span>';
-
-            db.ref(`rooms/${room}/matrix_nodes`).once('value', snap => {
-                const nodes = Object.entries(snap.val() || {}).filter(([id, n]) => n.category === catName);
+                const config = snap.val();
+                if (!config) return;
                 
-                nodes.forEach(([id, n], index) => {
-                    const bubble = document.createElement('div');
-                    bubble.className = "rank-bubble";
-                    bubble.style.borderLeftColor = n.color;
-                    bubble.innerText = n.text;
-                    // Posición inicial escalonada
-                    const initialY = 40 + (index * 60);
-                    bubble.style.top = initialY + 'px';
-                    bubble.setAttribute('data-id', id);
-                    bubble.setAttribute('data-y', initialY);
-                    canvas.appendChild(bubble);
+                document.getElementById('setup-waiting').classList.add('hidden');
+                document.getElementById('input-area').classList.remove('hidden');
 
-                    interact(bubble).draggable({
-                        listeners: {
-                            move(event) {
-                                const target = event.target;
-                                const canvasH = canvas.offsetHeight;
-                                let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-                                
-                                // Limitar dentro del canvas
-                                y = Math.max(0, Math.min(y, canvasH - 60));
-                                target.style.top = y + 'px';
-                                target.setAttribute('data-y', y);
-                            },
-                            end(event) {
-                                const target = event.target;
-                                const canvasH = canvas.offsetHeight;
-                                const currentY = parseFloat(target.getAttribute('data-y'));
-                                // Calcular score: arriba = 100, abajo = 0
-                                const score = Math.round(100 - (currentY / (canvasH - 60)) * 100);
-                                const nodeId = target.getAttribute('data-id');
-                                
-                                // Guardar voto individual en Firebase
-                                db.ref(`rooms/${room}/participant_votes/${participantId}/${nodeId}`).set(score);
-                            }
-                        }
-                    });
-                });
+                const stepContainer = document.getElementById('step-buttons');
+                stepContainer.innerHTML = (config.steps || []).map(s => `<button onclick="selectStep(this, '${s}')" class="step-btn shrink-0 px-4 py-2 rounded-lg border border-gray-800 bg-gray-900 text-[10px] font-black uppercase transition-all">${s}</button>`).join('');
+
+                const catContainer = document.getElementById('category-actions');
+                catContainer.innerHTML = (config.cats || []).map(c => `<button onclick="submitInstant('${c.name}', '${c.color}')" class="p-3 rounded-xl text-[10px] font-black uppercase shadow-lg active:scale-95 transition-transform" style="background:${c.color}; color:white">${c.name}</button>`).join('');
             });
-        }
 
-        function exitRanking() {
-            document.getElementById('screen-input').classList.remove('hidden');
-            document.getElementById('screen-ranking').classList.add('hidden');
+            db.ref(`rooms/${room}/remote_control`).on('value', snap => {
+                const ctrl = snap.val();
+                if (ctrl) {
+                    startRanking(ctrl.targetCategory, ctrl.mode);
+                }
+            });
         }
 
         function selectStep(btn, step) {
@@ -173,10 +128,79 @@
         function submitInstant(catName, catColor) {
             const text = document.getElementById('note-input').value.trim();
             if (!selectedStep || !text) return alert("Select Step and type text!");
-            db.ref(`rooms/${room}/notes`).push({ step: selectedStep, category: catName, color: catColor, text: text, sender: participantId, timestamp: Date.now() });
+            db.ref(`rooms/${room}/notes`).push({ 
+                step: selectedStep, category: catName, color: catColor, 
+                text: text, sender: participantId, timestamp: Date.now() 
+            });
             document.getElementById('note-input').value = "";
             document.getElementById('successOverlay').style.display = 'flex';
             setTimeout(() => { document.getElementById('successOverlay').style.display = 'none'; }, 800);
+        }
+
+        function startRanking(category, mode) {
+            document.getElementById('screen-input').classList.add('hidden');
+            document.getElementById('screen-ranking').classList.remove('hidden');
+            
+            const title = mode === 'importance' ? `RANK IMPORTANCE: ${category}` : `RANK EASE: ${category}`;
+            document.getElementById('ranking-title').innerText = title;
+            document.getElementById('label-high').innerText = mode === 'importance' ? "Critical (100)" : "Very Easy (100)";
+            document.getElementById('label-low').innerText = mode === 'importance' ? "Minor (0)" : "Very Hard (0)";
+
+            const container = document.getElementById('ranking-container');
+            db.ref(`rooms/${room}/matrix_nodes`).once('value', snap => {
+                const nodes = snap.val() || {};
+                container.innerHTML = "";
+
+                Object.entries(nodes).filter(([id, n]) => n.category === category).forEach(([id, n], index) => {
+                    const el = document.createElement('div');
+                    el.className = "rank-node";
+                    el.style.borderLeftColor = n.color;
+                    el.setAttribute('data-id', id);
+                    
+                    // Iniciamos con el valor guardado o 50
+                    const initialVal = mode === 'importance' ? (n.impact || 50) : (n.effort || 50);
+                    
+                    el.innerHTML = `
+                        <span class="step-label">${n.step}</span>
+                        <div class="rank-badge" id="badge-${id}">${initialVal}</div>
+                        ${n.text}
+                    `;
+                    
+                    // Posición inicial vertical
+                    const rect = container.getBoundingClientRect();
+                    const availableHeight = container.offsetHeight - 60;
+                    const y = (1 - (initialVal / 100)) * availableHeight;
+                    
+                    el.style.transform = `translateY(${y}px)`;
+                    el.setAttribute('data-y', y);
+                    container.appendChild(el);
+
+                    interact(el).draggable({
+                        listeners: {
+                            move(event) {
+                                const target = event.target;
+                                const containerH = container.offsetHeight - 60;
+                                let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                                
+                                // Limitar dentro del contenedor
+                                y = Math.max(0, Math.min(y, containerH));
+                                
+                                // Calcular score 0-100 (Invertido: arriba es 100, abajo es 0)
+                                const score = Math.round(100 - (y / containerH * 100));
+                                
+                                target.style.transform = `translateY(${y}px)`;
+                                target.setAttribute('data-y', y);
+                                
+                                // ACTUALIZACIÓN DE LA LEYENDA EN TIEMPO REAL
+                                document.getElementById(`badge-${id}`).innerText = score;
+
+                                // Guardar en Firebase
+                                db.ref(`rooms/${room}/participant_votes/${mode}/${participantId}/${id}`).set(score);
+                            }
+                        }
+                    });
+                });
+            });
         }
 
         initApp();
