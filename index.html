@@ -15,9 +15,6 @@
         .rank-node { position: absolute; width: 85%; left: 7.5%; background: white; color: black; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; border-left: 8px solid; touch-action: none; z-index: 10; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4); }
         .rank-badge { position: absolute; top: 4px; right: 4px; background: #f1f5f9; color: #1e40af; font-size: 9px; padding: 2px 5px; border-radius: 4px; font-family: monospace; border: 1px solid #e2e8f0; }
         .step-label { font-size: 7px; opacity: 0.5; margin-bottom: 2px; display: block; }
-        /* Animación para el overlay */
-        .fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -92,7 +89,6 @@
         let selectedStep = "";
 
         function initApp() {
-            // Si no hay room en la URL, mostramos la pantalla de login
             if (!room) {
                 document.getElementById('screen-login').classList.remove('hidden');
                 document.getElementById('screen-input').classList.add('hidden');
@@ -106,7 +102,6 @@
             db.ref(`rooms/${room}/config`).on('value', snap => {
                 const config = snap.val(); 
                 if (!config) {
-                    // Si el código no existe, lo tratamos como inválido
                     alert("Invalid Room Code");
                     exitToLogin();
                     return;
@@ -131,17 +126,13 @@
             });
         }
 
-        // FUNCIÓN PARA UNIRSE DESDE LA PANTALLA DE LOGIN
         function joinRoom() {
             const code = document.getElementById('room-input').value.trim().toUpperCase();
-            if (code) {
-                window.location.search = `?room=${code}`;
-            }
+            if (code) window.location.search = `?room=${code}`;
         }
 
-        // FUNCIÓN PARA SALIR / RESETEAR
         function exitToLogin() {
-            window.location.search = ""; // Limpia el parámetro ?room=
+            window.location.search = "";
         }
 
         function selectStep(btn, step) { 
