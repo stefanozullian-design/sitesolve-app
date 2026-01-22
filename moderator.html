@@ -28,9 +28,11 @@
         .matrix-cell { border: 1px solid rgba(255,255,255,0.1); position: relative; }
         .matrix-cell::after { content: attr(data-label); position: absolute; top: 4px; left: 4px; font-size: 7px; font-weight: 900; color: #475569; text-transform: uppercase; opacity: 0.6; }
         .matrix-postit { position: absolute; width: 60px; height: 60px; background: white; color: black; font-size: 7px; font-weight: 800; padding: 6px; border-radius: 2px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); transform: translate(-50%, -50%); overflow: hidden; line-height: 1.1; border-left: 4px solid; z-index: 30; }
-        .roadmap-column { min-width: 260px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .final-card { background: white; color: black; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border-left: 6px solid; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+        .roadmap-column { min-width: 260px; background: rgba(15, 23, 42, 0.4); border-radius: 12px; padding: 10px; border: 1px solid rgba(255,255,255,0.05); position: relative; height: 100%; display: flex; flex-direction: column; }
+        .roadmap-content-area { position: relative; flex: 1; margin-top: 10px; }
+        .final-card-absolute { position: absolute; left: 0; right: 0; background: white; color: black; padding: 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border-left: 6px solid; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); transition: top 0.5s ease-in-out; }
         .roi-tag { font-family: monospace; font-size: 9px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; color: #1e40af; font-weight: 900; }
+        .scale-mark { position: absolute; left: -20px; font-size: 8px; color: #475569; font-weight: 800; pointer-events: none; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -72,7 +74,7 @@
                 <div class="flex gap-4">
                     <button onclick="generateNewRoom()" class="text-blue-400 text-[10px] font-black uppercase px-4 border border-blue-900/30 rounded-lg">New Room Code</button>
                     <button onclick="resetAllData()" class="text-red-500 text-[10px] font-black uppercase px-4 border border-red-900/30 rounded-lg">Clear Session</button>
-                    <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest">Sync All Devices</button>
+                    <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg">Sync All Devices</button>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -98,13 +100,7 @@
 
     <div id="board-tab" class="tab-content bg-[#020617]">
         <div class="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-800">
-            <div class="flex flex-col">
-                <h2 class="text-sm font-black text-blue-400 uppercase italic leading-none">Importance Ranking</h2>
-                <div class="flex gap-4 mt-1">
-                    <span class="text-[8px] font-black text-gray-500 uppercase">Top: Critical (100%)</span>
-                    <span class="text-[8px] font-black text-gray-500 uppercase">Bottom: Minor (0%)</span>
-                </div>
-            </div>
+            <h2 class="text-sm font-black text-blue-400 uppercase italic leading-none">Importance Ranking</h2>
             <button onclick="showTab('effort')" class="bg-green-600 px-6 py-2 rounded font-black uppercase text-[10px]">Send to Effort →</button>
         </div>
         <div id="rankingContainer" class="flex-1 flex overflow-x-auto p-6 gap-6 scrollbar-hide"></div>
@@ -131,7 +127,7 @@
                     <h2 class="text-sm font-black text-green-400 uppercase italic">Strategic Roadmap</h2>
                     <button onclick="exportToPDF()" class="bg-white text-black px-4 py-1 rounded font-black uppercase text-[10px]">Export PDF</button>
                 </div>
-                <div id="roadmapContainer" class="flex-1 flex overflow-x-auto gap-4 scrollbar-hide"></div>
+                <div id="roadmapContainer" class="flex-1 flex overflow-x-auto gap-12 p-8 scrollbar-hide"></div>
             </div>
             <div class="w-96 flex flex-col gap-4 shrink-0">
                 <div class="matrix-container" id="matrixContainer">
@@ -154,30 +150,26 @@
 
         let currentRoom = "";
         let currentEffortCat = null;
-        const zones = [{ id: "gt", name: "Golden Ticket", minImp: 66, maxImp: 101, minEase: 66, maxEase: 101 },{ id: "sw", name: "Strategic Win", minImp: 66, maxImp: 101, minEase: 33, maxEase: 66 },{ id: "mp", name: "Major Project", minImp: 66, maxImp: 101, minEase: 0, maxEase: 33 },{ id: "lf", name: "Quick Win", minImp: 33, maxImp: 66, minEase: 66, maxEase: 101 },{ id: "tt", name: "Tactical", minImp: 33, maxImp: 66, minEase: 33, maxEase: 66 },{ id: "hs", name: "Hard Slog", minImp: 33, maxImp: 66, minEase: 0, maxEase: 33 },{ id: "wn", name: "Why Not?", minImp: 0, maxImp: 33, minEase: 66, maxEase: 101 },{ id: "fl", name: "Filler", minImp: 0, maxImp: 33, minEase: 33, maxEase: 66 },{ id: "pit", name: "Money Pit", minImp: 0, maxImp: 33, minEase: 0, maxEase: 33 }];
 
         function initRoom(code) {
             currentRoom = code;
             localStorage.setItem('currentRoomCode', code);
             document.getElementById('roomDisplay').innerText = code;
             const baseUrl = window.location.href.split('moderator.html')[0];
-            const participantUrl = baseUrl + "index.html?room=" + code;
             const qrcodeContainer = document.getElementById("qrcode");
             qrcodeContainer.innerHTML = "";
-            new QRCode(qrcodeContainer, { text: participantUrl, width: 100, height: 100 });
+            new QRCode(qrcodeContainer, { text: baseUrl + "index.html?room=" + code, width: 100, height: 100 });
             
-            db.ref(`rooms/${code}/config`).once('value', snap => {
+            db.ref(`rooms/${code}/config`).on('value', snap => {
                 const config = snap.val();
-                if (config) {
-                    if (config.title) document.getElementById('workshopTitle').value = config.title;
-                    const stepList = document.getElementById('stepList'); stepList.innerHTML = "";
-                    if (config.steps) config.steps.forEach(s => addRow('stepList', s));
-                    const categoryList = document.getElementById('categoryList'); categoryList.innerHTML = "";
-                    if (config.cats) config.cats.forEach(c => addRow('categoryList', c.name, c.color));
-                }
+                if (config && config.title) document.getElementById('workshopTitle').value = config.title;
             });
             renderWall();
         }
+
+        document.getElementById('workshopTitle').addEventListener('input', (e) => {
+            if(currentRoom) db.ref(`rooms/${currentRoom}/config`).update({ title: e.target.value });
+        });
 
         function generateNewRoom() {
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -195,10 +187,9 @@
 
         function pushConfig() {
             if(!currentRoom) return;
-            const title = document.getElementById('workshopTitle').value;
-            const steps = Array.from(document.querySelectorAll('#stepList input[type=\"text\"]')).map(i => i.value);
-            const cats = Array.from(document.querySelectorAll('#categoryList .row-item')).map(r => ({ name: r.querySelector('input[type=\"text\"]').value, color: r.querySelector('input[type=\"color\"]').value }));
-            db.ref(`rooms/${currentRoom}/config`).update({ title, steps, cats }).then(() => alert("Synced!"));
+            const steps = Array.from(document.querySelectorAll('#stepList input[type="text"]')).map(i => i.value);
+            const cats = Array.from(document.querySelectorAll('#categoryList .row-item')).map(r => ({ name: r.querySelector('input[type="text"]').value, color: r.querySelector('input[type="color"]').value }));
+            db.ref(`rooms/${currentRoom}/config`).update({ steps, cats }).then(() => alert("Synced!"));
         }
 
         function updateMergeTitle(id, newTitle) {
@@ -270,11 +261,7 @@
         }
 
         function setParticipantView(categoryName, type) {
-            db.ref(`rooms/${currentRoom}/remote_control`).set({
-                targetCategory: categoryName,
-                mode: type,
-                timestamp: Date.now()
-            });
+            db.ref(`rooms/${currentRoom}/remote_control`).set({ targetCategory: categoryName, mode: type, timestamp: Date.now() });
         }
 
         function renderRankingBoard() {
@@ -314,7 +301,6 @@
             db.ref(`rooms/${currentRoom}/config`).once('value', cSnap => {
                 const c = cSnap.val() || {};
                 nav.innerHTML = (c.cats || []).map(cat => `<button onclick="setParticipantView('${cat.name}', 'effort'); currentEffortCat='${cat.name}'; renderEffort();" class="px-3 py-1 rounded text-[9px] font-black uppercase border transition-all" style="border-color:${cat.color}; color:${currentEffortCat===cat.name?'black':cat.color}; background:${currentEffortCat===cat.name?cat.color:'transparent'}">${cat.name}</button>`).join('');
-                
                 db.ref(`rooms/${currentRoom}/matrix_nodes`).on('value', nSnap => {
                     area.innerHTML = ''; const nodes = nSnap.val() || {};
                     db.ref(`rooms/${currentRoom}/participant_votes/effort`).on('value', vSnap => {
@@ -323,7 +309,6 @@
                             let finalEffort = d.effort || 50;
                             const nodeVotes = Object.values(allVotes).map(v => v[id]).filter(v => v !== undefined);
                             if (nodeVotes.length > 0) finalEffort = Math.round(nodeVotes.reduce((a, b) => a + b, 0) / nodeVotes.length);
-
                             const el = document.createElement('div'); el.className = "effort-node"; el.style.borderLeftColor = d.color;
                             const xPos = (finalEffort / 100) * (area.offsetWidth - 170);
                             el.style.left = xPos + 'px'; el.style.top = (20 + (i * 45)) + 'px';
@@ -343,26 +328,26 @@
                 const c = cSnap.val() || {};
                 db.ref(`rooms/${currentRoom}/matrix_nodes`).once('value', nSnap => {
                     const nodes = Object.entries(nSnap.val() || {}).map(([id, n]) => ({ ...n, id, roi: Math.round(((n.impact || 0) * (n.effort || 0)) / 100) }));
-                    const matrixBox = document.getElementById('matrixContainer'); const w = matrixBox.offsetWidth; const h = matrixBox.offsetHeight;
+                    const matrixBox = document.getElementById('matrixContainer'); const mw = matrixBox.offsetWidth; const mh = matrixBox.offsetHeight;
                     nodes.forEach(n => {
                         const dot = document.createElement('div'); dot.className = "matrix-postit"; dot.style.borderLeftColor = n.color;
-                        const x = ((n.effort || 0) / 100) * w; const y = h - (((n.impact || 0) / 100) * h);
-                        dot.style.left = Math.max(35, Math.min(x, w - 35)) + 'px'; dot.style.top = Math.max(35, Math.min(y, h - 35)) + 'px';
+                        const x = ((n.effort || 0) / 100) * mw; const y = mh - (((n.impact || 0) / 100) * mh);
+                        dot.style.left = Math.max(35, Math.min(x, mw - 35)) + 'px'; dot.style.top = Math.max(35, Math.min(y, mh - 35)) + 'px';
                         dot.innerHTML = n.text; matrixPoints.appendChild(dot);
                     });
                     (c.cats || []).forEach(cat => {
-                        const col = document.createElement('div'); col.className = "roadmap-column"; col.innerHTML = `<h3 class=\"text-[10px] font-black uppercase mb-4\" style=\"color:${cat.color}\">${cat.name}</h3>`;
-                        zones.forEach(z => {
-                            const items = nodes.filter(n => n.category === cat.name && n.impact >= z.minImp && n.impact < z.maxImp && n.effort >= z.minEase && n.effort < z.maxEase);
-                            if(items.length > 0) {
-                                let html = `<div class=\"mb-4\"><div class=\"text-[7px] font-black opacity-40 uppercase mb-1\">${z.name}</div>`;
-                                items.forEach(n => html += `<div class=\"final-card\" style=\"border-left-color:${n.color}\"><span>${n.text}</span><span class=\"roi-tag\">${n.roi}</span></div>`);
-                                col.innerHTML += html + `</div>`;
-                            }
-                        });
+                        const col = document.createElement('div'); col.className = "roadmap-column";
+                        col.innerHTML = `<h3 class="text-[10px] font-black uppercase text-center border-b border-white/10 pb-2" style="color:${cat.color}">${cat.name}</h3><div class="roadmap-content-area" style="height:500px"></div>`;
                         container.appendChild(col);
+                        const contentArea = col.querySelector('.roadmap-content-area');
+                        nodes.filter(n => n.category === cat.name).forEach(n => {
+                            const card = document.createElement('div'); card.className = "final-card-absolute"; card.style.borderLeftColor = n.color;
+                            card.style.top = (100 - n.impact) * (500 / 100) + "px";
+                            card.innerHTML = `<span>${n.text}</span><span class="roi-tag">${n.impact}%</span>`;
+                            contentArea.appendChild(card);
+                        });
                     });
-                    nodes.sort((a,b) => b.roi - a.roi).forEach((n, i) => { masterList.innerHTML += `<div class=\"flex items-center gap-2 mb-2 p-2 bg-white/5 rounded text-[9px] uppercase font-bold\" style=\"border-left: 3px solid ${n.color}\">#${i+1} ${n.text} <span class=\"ml-auto roi-tag\">${n.roi}</span></div>`; });
+                    nodes.sort((a,b) => b.roi - a.roi).forEach((n, i) => { masterList.innerHTML += `<div class="flex items-center gap-2 mb-2 p-2 bg-white/5 rounded text-[9px] uppercase font-bold" style="border-left: 3px solid ${n.color}">#${i+1} ${n.text} <span class="ml-auto roi-tag">${n.roi} ROI</span></div>`; });
                 });
             });
         }
@@ -378,21 +363,12 @@
             if(tId === 'final') renderRoadmap();
         }
 
-        function exportToPDF() { const element = document.getElementById('pdf-area'); html2pdf().from(element).save(`SiteSolve_Report_${currentRoom}.pdf`); }
-        
-        function resetAllData() { 
-            if(confirm("Clear All Data and Session?")) {
-                db.ref(`rooms/${currentRoom}`).remove().then(() => {
-                    localStorage.removeItem('currentRoomCode');
-                    location.reload();
-                });
-            }
-        }
+        function exportToPDF() { html2pdf().from(document.getElementById('pdf-area')).save(`SiteSolve_${currentRoom}.pdf`); }
+        function resetAllData() { if(confirm("Clear All?")) { db.ref(`rooms/${currentRoom}`).remove().then(() => { localStorage.removeItem('currentRoomCode'); location.reload(); }); } }
 
         window.addEventListener('load', () => { 
             const savedRoom = localStorage.getItem('currentRoomCode');
-            if (savedRoom) initRoom(savedRoom);
-            else generateNewRoom();
+            if (savedRoom) initRoom(savedRoom); else generateNewRoom();
         });
     </script>
 </body>
